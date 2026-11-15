@@ -1,2 +1,1 @@
-# sri-lanka-news-portal
-RSnewslk.com
+ 0b9ed2b (Scaffold project with multilingual database schema and docs)

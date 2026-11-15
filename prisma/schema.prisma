@@ -1,0 +1,485 @@
+// RSnewslk.com database schema.
+// Design: a language-neutral identity row plus one translation row per language
+// for every piece of reader-facing content. See docs/architecture.md.
+//
+// Not expressible in Prisma and added by raw SQL migrations:
+//  - search columns (tsvector, normalised text, phonetic key) and their GIN indexes
+//  - the trigger that rejects circular category parents
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Locale {
+  si
+  en
+}
+
+enum ArticleStatus {
+  DRAFT
+  IN_REVIEW
+  SCHEDULED
+  PUBLISHED
+  HIDDEN
+  ARCHIVED
+}
+
+enum HomepageSectionType {
+  HERO
+  LATEST
+  MOST_READ
+  VIDEO
+  TOP_STORIES
+  CATEGORY_BLOCK
+  QUICK_CATEGORIES
+}
+
+enum NavTargetType {
+  CATEGORY
+  URL
+}
+
+// ───────────────────────── Articles ─────────────────────────
+
+/// Shared, language-neutral article identity. Holds no reader-facing text.
+model Article {
+  id                String    @id @default(cuid())
+  primaryCategoryId String
+  authorId          String?
+  featuredMediaId   String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  /// Soft delete. Permanent deletion is a separate, confirmed admin action.
+  deletedAt         DateTime?
+
+  primaryCategory Category @relation("ArticlePrimaryCategory", fields: [primaryCategoryId], references: [id], onDelete: Restrict)
+  author          Author?  @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  featuredMedia   Media?   @relation("ArticleFeaturedMedia", fields: [featuredMediaId], references: [id], onDelete: Restrict)
+
+  translations ArticleTranslation[]
+  categories   ArticleCategory[]
+  tags         ArticleTag[]
+  views        ArticleViewDaily[]
+  featured     FeaturedArticle[]
+  breaking     BreakingNews[]
+  videos       Video[]
+
+  @@index([primaryCategoryId])
+  @@index([deletedAt])
+}
+
+/// One language version of an article. Edited, scheduled and published independently.
+model ArticleTranslation {
+  id              String        @id @default(cuid())
+  articleId       String
+  locale          Locale
+  headline        String
+  summary         String        @default("")
+  /// ProseMirror JSON. Rendered server-side from an allow-list of node types.
+  body            Json
+  slug            String
+  seoTitle        String?
+  metaDescription String?
+  ogTitle         String?
+  ogDescription   String?
+  status          ArticleStatus @default(DRAFT)
+  /// When status is SCHEDULED, the article is treated as published once this time passes.
+  scheduledAt     DateTime?
+  publishedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  article   Article           @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  revisions ArticleRevision[]
+  redirects SlugRedirect[]
+
+  @@unique([articleId, locale])
+  @@unique([locale, slug])
+  @@index([locale, status, publishedAt(sort: Desc)])
+  @@index([locale, status, scheduledAt])
+}
+
+/// Immutable snapshot of one translation at each save.
+model ArticleRevision {
+  id            String        @id @default(cuid())
+  translationId String
+  headline      String
+  summary       String
+  body          Json
+  status        ArticleStatus
+  note          String?
+  createdAt     DateTime      @default(now())
+
+  translation ArticleTranslation @relation(fields: [translationId], references: [id], onDelete: Cascade)
+
+  @@index([translationId, createdAt(sort: Desc)])
+}
+
+// ───────────────────────── Classification ─────────────────────────
+
+/// Sections, categories and subcategories in one self-referencing tree (max depth 3).
+model Category {
+  id        String   @id @default(cuid())
+  parentId  String?
+  sortOrder Int      @default(0)
+  isVisible Boolean  @default(true)
+  icon      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Category[] @relation("CategoryTree")
+
+  translations     CategoryTranslation[]
+  primaryArticles  Article[]             @relation("ArticlePrimaryCategory")
+  articles         ArticleCategory[]
+  navigationItems  NavigationItem[]
+  homepageSections HomepageSection[]
+
+  @@index([parentId, sortOrder])
+}
+
+model CategoryTranslation {
+  id              String  @id @default(cuid())
+  categoryId      String
+  locale          Locale
+  name            String
+  slug            String
+  description     String?
+  seoTitle        String?
+  metaDescription String?
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, locale])
+  @@unique([locale, slug])
+}
+
+/// Additional (non-primary) categories. Shared by both editions.
+model ArticleCategory {
+  articleId  String
+  categoryId String
+
+  article  Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@id([articleId, categoryId])
+  @@index([categoryId])
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  translations TagTranslation[]
+  articles     ArticleTag[]
+}
+
+model TagTranslation {
+  id     String @id @default(cuid())
+  tagId  String
+  locale Locale
+  name   String
+  slug   String
+
+  tag Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([tagId, locale])
+  @@unique([locale, slug])
+}
+
+model ArticleTag {
+  articleId String
+  tagId     String
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, tagId])
+  @@index([tagId])
+}
+
+// ───────────────────────── Authors, media, video ─────────────────────────
+
+model Author {
+  id           String   @id @default(cuid())
+  photoMediaId String?
+  createdAt    DateTime @default(now())
+
+  photo        Media?              @relation("AuthorPhoto", fields: [photoMediaId], references: [id], onDelete: SetNull)
+  translations AuthorTranslation[]
+  articles     Article[]
+}
+
+model AuthorTranslation {
+  id          String  @id @default(cuid())
+  authorId    String
+  locale      Locale
+  displayName String
+  bio         String?
+
+  author Author @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@unique([authorId, locale])
+}
+
+/// An uploaded image after validation and re-encoding.
+model Media {
+  id         String   @id @default(cuid())
+  /// Generated name inside the storage backend. Never derived from the upload's filename.
+  storageKey String   @unique
+  mimeType   String
+  width      Int
+  height     Int
+  sizeBytes  Int
+  checksum   String
+  credit     String?
+  createdAt  DateTime @default(now())
+
+  translations MediaTranslation[]
+  articles     Article[]          @relation("ArticleFeaturedMedia")
+  authors      Author[]           @relation("AuthorPhoto")
+  videos       Video[]            @relation("VideoThumbnail")
+
+  @@index([checksum])
+}
+
+model MediaTranslation {
+  id      String  @id @default(cuid())
+  mediaId String
+  locale  Locale
+  altText String
+  caption String?
+
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([mediaId, locale])
+}
+
+model Video {
+  id               String    @id @default(cuid())
+  youtubeId        String
+  durationSeconds  Int
+  thumbnailMediaId String?
+  articleId        String?
+  isVisible        Boolean   @default(true)
+  publishedAt      DateTime?
+  createdAt        DateTime  @default(now())
+
+  thumbnail    Media?             @relation("VideoThumbnail", fields: [thumbnailMediaId], references: [id], onDelete: SetNull)
+  article      Article?           @relation(fields: [articleId], references: [id], onDelete: SetNull)
+  translations VideoTranslation[]
+
+  @@index([isVisible, publishedAt(sort: Desc)])
+}
+
+model VideoTranslation {
+  id          String  @id @default(cuid())
+  videoId     String
+  locale      Locale
+  title       String
+  description String?
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([videoId, locale])
+}
+
+// ───────────────────────── Navigation and homepage ─────────────────────────
+
+model NavigationItem {
+  id         String        @id @default(cuid())
+  parentId   String?
+  targetType NavTargetType
+  categoryId String?
+  url        String?
+  sortOrder  Int           @default(0)
+  isVisible  Boolean       @default(true)
+
+  parent       NavigationItem?             @relation("NavigationTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children     NavigationItem[]            @relation("NavigationTree")
+  category     Category?                   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  translations NavigationItemTranslation[]
+
+  @@index([parentId, sortOrder])
+}
+
+model NavigationItemTranslation {
+  id               String @id @default(cuid())
+  navigationItemId String
+  locale           Locale
+  label            String
+
+  navigationItem NavigationItem @relation(fields: [navigationItemId], references: [id], onDelete: Cascade)
+
+  @@unique([navigationItemId, locale])
+}
+
+model HomepageSection {
+  id         String              @id @default(cuid())
+  type       HomepageSectionType
+  sortOrder  Int                 @default(0)
+  isEnabled  Boolean             @default(true)
+  /// Set for CATEGORY_BLOCK sections.
+  categoryId String?
+  settings   Json?
+
+  category     Category?                    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  translations HomepageSectionTranslation[]
+
+  @@index([isEnabled, sortOrder])
+}
+
+model HomepageSectionTranslation {
+  id                String @id @default(cuid())
+  homepageSectionId String
+  locale            Locale
+  heading           String
+
+  homepageSection HomepageSection @relation(fields: [homepageSectionId], references: [id], onDelete: Cascade)
+
+  @@unique([homepageSectionId, locale])
+}
+
+/// Hero carousel entry for one edition.
+model FeaturedArticle {
+  id        String    @id @default(cuid())
+  articleId String
+  locale    Locale
+  position  Int       @default(0)
+  endsAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, locale])
+  @@index([locale, position])
+}
+
+/// Ticker entry for one edition.
+model BreakingNews {
+  id         String    @id @default(cuid())
+  articleId  String
+  locale     Locale
+  customText String?
+  isActive   Boolean   @default(true)
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([locale, isActive, createdAt(sort: Desc)])
+}
+
+// ───────────────────────── Analytics and redirects ─────────────────────────
+
+/// One counter per article, edition and day. Most Read sums the last N days.
+model ArticleViewDaily {
+  articleId String
+  locale    Locale
+  day       DateTime @db.Date
+  count     Int      @default(0)
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, locale, day])
+  @@index([locale, day])
+}
+
+/// Old path kept so a moved or renamed article answers with a 301.
+model SlugRedirect {
+  id            String   @id @default(cuid())
+  locale        Locale
+  oldPath       String
+  translationId String
+  createdAt     DateTime @default(now())
+
+  translation ArticleTranslation @relation(fields: [translationId], references: [id], onDelete: Cascade)
+
+  @@unique([locale, oldPath])
+}
+
+// ───────────────────────── Site, admin, audit ─────────────────────────
+
+/// Single row (id = 1).
+model SiteSettings {
+  id                 Int      @id @default(1)
+  siteName           String   @default("RSnewslk.com")
+  mostReadWindowDays Int      @default(7)
+  aiDailyTokenBudget Int      @default(200000)
+  socialLinks        Json     @default("{}")
+  /// Per-language values such as tagline and footer text, keyed by locale.
+  localized          Json     @default("{}")
+  updatedAt          DateTime @updatedAt
+}
+
+/// The one administrator. Created by scripts/create-admin.ts, never by a web form.
+model Admin {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  /// Argon2id hash.
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastLoginAt  DateTime?
+
+  sessions  AdminSession[]
+  auditLogs AuditLog[]
+  aiUsage   AiUsageLog[]
+}
+
+model AdminSession {
+  id         String   @id @default(cuid())
+  adminId    String
+  /// SHA-256 of the session token. The token itself is never stored.
+  tokenHash  String   @unique
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  expiresAt  DateTime
+  ip         String?
+  userAgent  String?
+
+  admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
+
+/// Append-only record of administrative actions.
+model AuditLog {
+  id         String   @id @default(cuid())
+  adminId    String?
+  action     String
+  entityType String?
+  entityId   String?
+  ip         String?
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  admin Admin? @relation(fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([entityType, entityId])
+}
+
+/// One row per AI call. Stores counts only, never article text.
+model AiUsageLog {
+  id           String   @id @default(cuid())
+  adminId      String?
+  operation    String
+  provider     String
+  model        String
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  success      Boolean
+  errorCode    String?
+  createdAt    DateTime @default(now())
+
+  admin Admin? @relation(fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc)])
+}
