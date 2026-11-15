@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
+  poweredByHeader: false,
   turbopack: {
     rules: {
       "*.css": {
@@ -11,6 +11,10 @@ const nextConfig: NextConfig = {
         as: "*.css",
       },
     },
+  },
+  async redirects() {
+    // Sinhala is the default edition.
+    return [{ source: "/", destination: "/si", permanent: true }];
   },
 };
 

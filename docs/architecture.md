@@ -24,6 +24,17 @@ One Next.js application serves the public site and `/admin`, backed by one Postg
 - Every public URL starts with the locale: `/{locale}/{category path}/{article slug}`, `/{locale}/tag/{slug}`, `/{locale}/search`.
 - `/` redirects permanently to `/si/`. Readers are never redirected by browser language.
 - Slugs are Latin script in both editions and unique within a language.
+- Listings are paginated in the path, not the query string: `/si/politics/page/2`. `page` is therefore a reserved word that no category or article slug may use. Page 1 has no suffix.
+- An article has one URL, built from its primary category path. The same slug under any other category prefix answers with a permanent redirect.
+
+## Rendering and caching
+
+- Each edition has its own root layout (`src/app/(si)`, `src/app/(en)`), so `<html lang>` is static. The route files are thin; the shared implementations live in `src/routes/`.
+- All content queries in `src/server/services/content.ts` are cached with `use cache`, a lifetime (`minutes` for article listings, `hours` for categories and navigation) and tags (`articles`, `categories`, `navigation`, `settings`, `tags`, `homepage`). The admin portal will invalidate by tag on publish.
+- The layouts set `ensureStatic = "navigation"`: a page renders completely before the response starts. This is what makes a missing page answer 404 and a moved article answer 308, instead of a 200 shell.
+- Because of that setting, public pages cannot read cookies, headers or the query string on the server.
+- `next build` needs the database, because section and tag pages are prerendered.
+- Times: the server prints the absolute time; the browser replaces it with a relative time. Dates are formatted by hand (`src/lib/utils/dates.ts`) because Sinhala locale data differs between browsers.
 
 ## Multilingual data model
 

@@ -1,26 +1,97 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@theme {
+  --color-navy: #0b1f3a;
+  --color-navy-deep: #081629;
+  --color-navy-line: #22395c;
+  --color-navy-soft: #d6deea;
+  --color-brand: #c8102e;
+  --color-brand-dark: #b50d24;
+  --color-brand-light: #ff4d5a;
+  --color-ink: #101828;
+  --color-body: #3a4553;
+  --color-muted: #55606f;
+  --color-surface: #f4f6f9;
+  --color-soft: #e9edf3;
+  --color-line: #e4e8ee;
+  --color-placeholder: #d5dde8;
+  --color-notice: #fff4d6;
+  --color-notice-ink: #5a3e00;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --font-sans: "Noto Sans Sinhala Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-latin: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  --animate-ticker: ticker 40s linear infinite;
+
+  @keyframes ticker {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    /* Sinhala glyphs carry marks above and below the line; they need generous leading. */
+    line-height: 1.6;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+  .on-dark :focus-visible {
+    outline-color: #ffffff;
+  }
+}
+
+/* Article body typography. */
+.article-body {
+  font-size: 1.125rem;
+  line-height: 1.9;
+  color: var(--color-ink);
+}
+.article-body > * + * {
+  margin-top: 1.25em;
+}
+.article-body h2 {
+  font-size: 1.5rem;
+  line-height: 1.5;
+  font-weight: 700;
+  margin-top: 1.8em;
+}
+.article-body h3 {
+  font-size: 1.25rem;
+  line-height: 1.5;
+  font-weight: 700;
+  margin-top: 1.6em;
+}
+.article-body ul {
+  list-style: disc;
+  padding-left: 1.5em;
+}
+.article-body ol {
+  list-style: decimal;
+  padding-left: 1.5em;
+}
+.article-body li + li {
+  margin-top: 0.4em;
+}
+.article-body blockquote {
+  border-left: 4px solid var(--color-brand);
+  padding-left: 1em;
+  color: var(--color-body);
+}
+.article-body a {
+  color: var(--color-brand-dark);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
