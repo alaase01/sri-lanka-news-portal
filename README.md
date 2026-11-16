@@ -2,7 +2,9 @@
 
 Sri Lankan digital news website with Sinhala (`/si/`, default) and English (`/en/`) editions and a single-administrator content management portal.
 
-**Status: Increment 1 (reading site) built.** Homepage, category pages, article pages and tag pages work in both editions on fictional demo content. There is no admin portal, search, image upload or view counting yet.
+**Status:** the reading site (homepage, category, article and tag pages), article sharing, and the public side of Public Opinions (poll listing, voting, results, approved comments) work in both editions on fictional demo content.
+
+**Not built yet:** the admin portal (login, article editing, video, poll and comment management), public video pages, search, image upload and view counting. Polls and comments can currently only be created and moderated through the seed script or the database.
 
 ## Stack
 
@@ -16,7 +18,7 @@ Requirements: Node.js 22+, PostgreSQL 16+.
 
 ```bash
 npm install
-cp .env.example .env        # then set DATABASE_URL
+cp .env.example .env        # then set DATABASE_URL (and VOTE_SECRET before a production build)
 npx prisma migrate dev      # creates the tables
 npx prisma generate         # generates the database client
 npm run db:seed             # loads FICTIONAL demo content (wipes content tables first)
@@ -35,10 +37,13 @@ npm run build && npm start  # production build; needs the database running
 | `npm run db:generate` | Regenerate the Prisma client into `src/generated` |
 | `npm run db:seed` | Replace all content with fictional demo content (refuses to run in production) |
 | `npm run typecheck` / `npm run lint` | Type checking and linting |
+| `npm test` | Unit and integration tests. The integration tests use the database in `DATABASE_URL`; they create their own polls and remove them afterwards |
+| `npm run test:unit` | Unit tests only (no database needed) |
 
 ## Documentation
 
 - [docs/architecture.md](docs/architecture.md): architecture, multilingual data model, URL and SEO rules, search design, security approach, increments
+- [docs/polls.md](docs/polls.md): how voting works, the one-vote-per-device rule, privacy, and known limits
 - [prisma/schema.prisma](prisma/schema.prisma): the database schema
 
 ## Increments

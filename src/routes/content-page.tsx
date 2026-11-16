@@ -4,7 +4,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import type { Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { formatDateTime } from "@/lib/utils/dates";
-import { alternates } from "@/lib/seo/metadata";
+import { absoluteUrl, alternates } from "@/lib/seo/metadata";
 import {
   getArticlePage,
   getCategoryIndex,
@@ -14,8 +14,11 @@ import {
   type CategoryPageData,
 } from "@/server/services/content";
 import { ArticleBody } from "@/components/article/ArticleBody";
+import { ShareBar } from "@/components/article/ShareBar";
+import { Wordmark } from "@/components/layout/Wordmark";
 import { Breadcrumbs } from "@/components/article/Breadcrumbs";
-import { ArticleGrid } from "@/components/news/ArticleCards";
+import { AdSlot } from "@/components/ads/AdSlot";
+import { ArticleFeed, ArticleGrid } from "@/components/news/ArticleCards";
 import { SectionHeading } from "@/components/news/SectionHeading";
 import { Pagination } from "@/components/news/Pagination";
 
@@ -96,6 +99,8 @@ export async function contentMetadata(locale: Locale, props: ContentProps): Prom
       publishedTime: article.publishedAt,
       modifiedTime: article.updatedAt,
     },
+    // "summary" until articles have images; switches to a large image card with image upload.
+    twitter: { card: "summary", title: article.headline, description },
   };
 }
 
@@ -122,6 +127,7 @@ function CategoryView({ locale, data }: { locale: Locale; data: CategoryPageData
   const t = getDictionary(locale);
   return (
     <div className="flex flex-col gap-5">
+      <AdSlot slot="top" label={t.advertisement} />
       <Breadcrumbs crumbs={data.crumbs.slice(0, -1)} homeHref={`/${locale}`} homeLabel={t.home} />
       <header className="border-l-[5px] border-brand pl-3">
         <h1 className="text-3xl font-bold leading-snug">{data.category.name}</h1>
@@ -145,7 +151,7 @@ function CategoryView({ locale, data }: { locale: Locale; data: CategoryPageData
       {data.articles.length === 0 ? (
         <p className="rounded-lg bg-white p-6 text-body">{t.noArticles}</p>
       ) : (
-        <ArticleGrid articles={data.articles} locale={locale} />
+        <ArticleFeed articles={data.articles} locale={locale} adLabel={t.advertisement} />
       )}
 
       <Pagination basePath={data.category.href} page={data.page} hasNext={data.hasNext} labels={{ newer: t.newerNews, older: t.olderNews }} />
@@ -156,10 +162,28 @@ function CategoryView({ locale, data }: { locale: Locale; data: CategoryPageData
 function ArticleView({ locale, article }: { locale: Locale; article: ArticlePageData }) {
   const t = getDictionary(locale);
   const showUpdated = new Date(article.updatedAt).getTime() - new Date(article.publishedAt).getTime() > 60_000;
+  const category = article.crumbs.at(-1);
+  const fullUrl = absoluteUrl(article.href);
+  // Copyright year of the article itself, so cached pages never need the current date.
+  const year = article.publishedAt.slice(0, 4);
   return (
     <div className="flex flex-col gap-8">
+      <AdSlot slot="top" label={t.advertisement} />
       <article className="mx-auto w-full max-w-3xl rounded-lg bg-white px-4 py-6 sm:px-8 sm:py-8">
-        <Breadcrumbs crumbs={article.crumbs} homeHref={`/${locale}`} homeLabel={t.home} />
+        {/* Brand strip: sits directly above the headline so screenshots of it carry the brand. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b-2 border-navy pb-2.5">
+          <Link href={`/${locale}`} aria-label={`RSnewslk.com — ${t.home}`}>
+            <Wordmark tone="light" className="text-[20px] leading-none sm:text-[22px]" />
+          </Link>
+          {category && (
+            <Link href={category.href} className="rounded-sm bg-brand px-2.5 py-0.5 text-[13px] font-semibold text-white hover:bg-brand-dark">
+              {category.name}
+            </Link>
+          )}
+        </div>
+        <div className="mt-3">
+          <Breadcrumbs crumbs={article.crumbs} homeHref={`/${locale}`} homeLabel={t.home} />
+        </div>
         <h1 className="mt-4 text-[28px] font-bold leading-[1.45] sm:text-4xl sm:leading-[1.4]">{article.headline}</h1>
         {article.summary && <p className="mt-3 text-lg leading-relaxed text-body">{article.summary}</p>}
 
@@ -176,11 +200,38 @@ function ArticleView({ locale, article }: { locale: Locale; article: ArticlePage
         </p>
 
         <div className="mt-6">
-          <ArticleBody body={article.body} />
+          <ArticleBody body={article.body} inset={<AdSlot slot="in-article" label={t.advertisement} />} />
+        </div>
+
+        {/* Source line: attribution at the end of the text, for screenshots of the lower part. */}
+        <p className="mt-8 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t-2 border-navy pt-3 text-[13px] text-muted">
+          <span className="flex items-center gap-2">
+            <Wordmark tone="light" className="text-[15px]" />
+            <span className="font-latin">© {year} RSnewslk.com</span>
+          </span>
+          <span className="min-w-0 max-w-full truncate font-latin" title={fullUrl}>
+            {fullUrl.replace(/^https?:\/\//, "")}
+          </span>
+        </p>
+
+        <div className="mt-5 border-t border-line pt-5">
+          <ShareBar
+            url={fullUrl}
+            title={article.headline}
+            summary={article.summary}
+            labels={{
+              share: t.share,
+              copyLink: t.copyLink,
+              linkCopied: t.linkCopied,
+              copyFailed: t.copyFailed,
+              shareMore: t.shareMore,
+              shareOn: t.shareOn,
+            }}
+          />
         </div>
 
         {article.tags.length > 0 && (
-          <div className="mt-8 flex flex-wrap items-center gap-2 border-t border-line pt-5">
+          <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-line pt-5">
             <span className="text-sm font-semibold text-muted">{t.tags}:</span>
             <ul className="flex flex-wrap gap-2">
               {article.tags.map((tag) => (

@@ -4,6 +4,7 @@ import { otherLocale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { alternates } from "@/lib/seo/metadata";
 import { getHomepage } from "@/server/services/content";
+import { AdSlot } from "@/components/ads/AdSlot";
 import { ArticleHeadline, ArticleRow, ArticleTile } from "@/components/news/ArticleCards";
 import { HeroCarousel } from "@/components/news/HeroCarousel";
 import { LatestTabs } from "@/components/news/LatestTabs";
@@ -26,6 +27,8 @@ export async function HomePage({ locale }: { locale: Locale }) {
       <QuickCategories categories={data.quickCategories} label={t.quickCategories} className="lg:hidden" />
 
       <Ticker items={data.breaking} label={t.breaking} />
+
+      <AdSlot slot="top" label={t.advertisement} />
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <HeroCarousel
@@ -61,6 +64,8 @@ export async function HomePage({ locale }: { locale: Locale }) {
           </ul>
         </section>
       )}
+
+      <AdSlot slot="home-mid" label={t.advertisement} />
 
       {data.categoryBlocks.length > 0 && (
         <div className="grid gap-5 md:grid-cols-2">

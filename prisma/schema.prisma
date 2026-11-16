@@ -44,6 +44,46 @@ enum NavTargetType {
   URL
 }
 
+/// Stored poll status. Whether a poll is open for voting is always decided from
+/// startsAt and endsAt at request time, never from this value alone.
+enum PollStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  CLOSED
+  ARCHIVED
+}
+
+enum PollResultsVisibility {
+  /// Anyone can see results while voting is open.
+  ALWAYS
+  /// A device sees results once it has voted; everyone sees them after closing.
+  AFTER_VOTE
+  /// Results appear only when voting has closed.
+  AFTER_CLOSE
+}
+
+enum VoteIdentity {
+  ANONYMOUS
+  CODE_NAME
+}
+
+enum CommentStatus {
+  PENDING
+  APPROVED
+  HIDDEN
+}
+
+enum PollEventType {
+  DUPLICATE_ATTEMPT
+  RATE_LIMITED
+  FRESH_DEVICE_BURST
+  INVALID_DEVICE_TOKEN
+  TOO_FAST
+  HONEYPOT
+  NOT_OPEN
+}
+
 // ───────────────────────── Articles ─────────────────────────
 
 /// Shared, language-neutral article identity. Holds no reader-facing text.
@@ -140,6 +180,7 @@ model Category {
   articles         ArticleCategory[]
   navigationItems  NavigationItem[]
   homepageSections HomepageSection[]
+  videos           Video[]
 
   @@index([parentId, sortOrder])
 }
@@ -178,6 +219,7 @@ model Tag {
 
   translations TagTranslation[]
   articles     ArticleTag[]
+  videos       VideoTag[]
 }
 
 model TagTranslation {
@@ -245,6 +287,7 @@ model Media {
   articles     Article[]          @relation("ArticleFeaturedMedia")
   authors      Author[]           @relation("AuthorPhoto")
   videos       Video[]            @relation("VideoThumbnail")
+  polls        Poll[]             @relation("PollFeaturedMedia")
 
   @@index([checksum])
 }
@@ -262,32 +305,59 @@ model MediaTranslation {
 }
 
 model Video {
-  id               String    @id @default(cuid())
+  id               String        @id @default(cuid())
   youtubeId        String
-  durationSeconds  Int
+  durationSeconds  Int           @default(0)
   thumbnailMediaId String?
   articleId        String?
-  isVisible        Boolean   @default(true)
+  categoryId       String?
+  /// Kept from Increment 1. A video is public when status allows it AND this is true.
+  isVisible        Boolean       @default(true)
+  status           ArticleStatus @default(DRAFT)
+  scheduledAt      DateTime?
   publishedAt      DateTime?
-  createdAt        DateTime  @default(now())
+  isFeatured       Boolean       @default(false)
+  sortOrder        Int           @default(0)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @default(now()) @updatedAt
+  deletedAt        DateTime?
 
   thumbnail    Media?             @relation("VideoThumbnail", fields: [thumbnailMediaId], references: [id], onDelete: SetNull)
   article      Article?           @relation(fields: [articleId], references: [id], onDelete: SetNull)
+  category     Category?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   translations VideoTranslation[]
+  tags         VideoTag[]
 
   @@index([isVisible, publishedAt(sort: Desc)])
+  @@index([status, publishedAt(sort: Desc)])
 }
 
 model VideoTranslation {
-  id          String  @id @default(cuid())
-  videoId     String
-  locale      Locale
-  title       String
-  description String?
+  id              String  @id @default(cuid())
+  videoId         String
+  locale          Locale
+  title           String
+  description     String?
+  /// Null on rows created before video pages existed; such a video has no page in this language.
+  slug            String?
+  seoTitle        String?
+  metaDescription String?
 
   video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
 
   @@unique([videoId, locale])
+  @@unique([locale, slug])
+}
+
+model VideoTag {
+  videoId String
+  tagId   String
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  tag   Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([videoId, tagId])
+  @@index([tagId])
 }
 
 // ───────────────────────── Navigation and homepage ─────────────────────────
@@ -402,6 +472,135 @@ model SlugRedirect {
   translation ArticleTranslation @relation(fields: [translationId], references: [id], onDelete: Cascade)
 
   @@unique([locale, oldPath])
+}
+
+// ───────────────────────── Public opinions (polls) ─────────────────────────
+
+/// One poll, shared by both editions: one identity, one voting population.
+model Poll {
+  id                String                @id @default(cuid())
+  /// Latin-script slug, the same in /si and /en.
+  slug              String                @unique
+  status            PollStatus            @default(DRAFT)
+  isHidden          Boolean               @default(false)
+  startsAt          DateTime
+  endsAt            DateTime
+  resultsVisibility PollResultsVisibility @default(AFTER_VOTE)
+  featuredMediaId   String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  /// Soft delete. Votes are never removed by deleting a poll from the admin portal.
+  deletedAt         DateTime?
+
+  featuredMedia Media?            @relation("PollFeaturedMedia", fields: [featuredMediaId], references: [id], onDelete: SetNull)
+  translations  PollTranslation[]
+  options       PollOption[]
+  events        PollEvent[]
+
+  @@index([status, startsAt])
+  @@index([status, endsAt])
+}
+
+model PollTranslation {
+  id              String  @id @default(cuid())
+  pollId          String
+  locale          Locale
+  question        String
+  description     String  @default("")
+  seoTitle        String?
+  metaDescription String?
+
+  poll Poll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, locale])
+}
+
+model PollOption {
+  id        String @id @default(cuid())
+  pollId    String
+  sortOrder Int    @default(0)
+
+  poll         Poll                    @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  translations PollOptionTranslation[]
+  votes        PollVote[]
+
+  /// Lets PollVote reference (optionId, pollId) together, so the database itself
+  /// refuses a vote whose option belongs to a different poll.
+  @@unique([id, pollId])
+  @@index([pollId, sortOrder])
+}
+
+model PollOptionTranslation {
+  id       String @id @default(cuid())
+  optionId String
+  locale   Locale
+  label    String
+
+  option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([optionId, locale])
+}
+
+/// One vote. The source of truth for results; there is no stored tally.
+model PollVote {
+  id         String       @id @default(cuid())
+  pollId     String
+  optionId   String
+  /// HMAC of the device token. The token itself lives only in the visitor's cookie.
+  deviceHash String
+  identity   VoteIdentity @default(ANONYMOUS)
+  codeName   String?
+  /// Edition the vote was cast from. Informational; both editions share one tally.
+  locale     Locale
+  /// HMAC of the network address with a key that changes daily. Not reversible,
+  /// not comparable across days. Used only for abuse detection.
+  networkHash String?
+  /// True when the device token was issued shortly before the vote.
+  freshDevice Boolean     @default(false)
+  createdAt  DateTime     @default(now())
+
+  option  PollOption   @relation(fields: [optionId, pollId], references: [id, pollId], onDelete: Restrict)
+  comment PollComment?
+
+  /// One vote per recognised device per poll, enforced by the database.
+  @@unique([pollId, deviceHash])
+  @@index([pollId, optionId])
+  @@index([pollId, createdAt])
+  @@index([pollId, networkHash, createdAt])
+}
+
+/// Optional comment attached to a vote. Moderating or deleting it never touches the vote.
+model PollComment {
+  id          String        @id @default(cuid())
+  voteId      String        @unique
+  /// Plain text. Never rendered as HTML.
+  body        String
+  status      CommentStatus @default(PENDING)
+  /// Set by automatic checks (links, repeated text) to help moderation.
+  flagged     Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  moderatedAt DateTime?
+
+  vote PollVote @relation(fields: [voteId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+}
+
+/// Rejected or suspicious voting attempts, for the admin's review. Holds no raw
+/// identifiers and is meant to be purged after 30 days.
+model PollEvent {
+  id          String        @id @default(cuid())
+  pollId      String?
+  type        PollEventType
+  deviceHash  String?
+  networkHash String?
+  createdAt   DateTime      @default(now())
+
+  poll Poll? @relation(fields: [pollId], references: [id], onDelete: Cascade)
+
+  @@index([pollId, createdAt])
+  @@index([type, createdAt])
+  @@index([networkHash, createdAt])
 }
 
 // ───────────────────────── Site, admin, audit ─────────────────────────

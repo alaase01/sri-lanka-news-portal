@@ -7,14 +7,7 @@ import { LanguageSwitch } from "./LanguageSwitch";
 import { MobileMenu } from "./MobileMenu";
 import { NavLinks, NavLinksFallback } from "./NavLinks";
 import { TodayDate } from "./TodayDate";
-
-function Wordmark({ className }: { className?: string }) {
-  return (
-    <span className={`font-latin font-extrabold italic tracking-tight text-white ${className ?? ""}`}>
-      RSNEWS<span className="text-brand-light">LK</span>.COM
-    </span>
-  );
-}
+import { Wordmark } from "./Wordmark";
 
 export function Header({ locale, t, chrome }: { locale: Locale; t: Dictionary; chrome: SiteChrome }) {
   const home = `/${locale}`;

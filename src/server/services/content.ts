@@ -539,3 +539,125 @@ export async function getTagSlugs(locale: Locale): Promise<string[]> {
   const rows = await db.tagTranslation.findMany({ where: { locale }, select: { slug: true }, take: 20 });
   return rows.map((r) => r.slug);
 }
+
+// ───────────────────────── public opinions (polls) ─────────────────────────
+
+export type PollOptionView = { id: string; label: string };
+
+export type PollCard = {
+  id: string;
+  slug: string;
+  href: string;
+  question: string;
+  description: string;
+  /** Phase when this was cached. The poll page asks the server for the live phase. */
+  phase: "upcoming" | "active" | "closed" | "archived";
+  startsAt: string;
+  endsAt: string;
+  totalVotes: number;
+};
+
+export type PollPageData = PollCard & {
+  seoTitle: string | null;
+  metaDescription: string | null;
+  options: PollOptionView[];
+  resultsVisibility: "ALWAYS" | "AFTER_VOTE" | "AFTER_CLOSE";
+  /** True when the poll also has a translation in the other edition. */
+  hasOtherEdition: boolean;
+};
+
+const publicPollWhere = { deletedAt: null, isHidden: false, status: { not: "DRAFT" } } satisfies Prisma.PollWhereInput;
+
+function livePhase(poll: { status: "DRAFT" | "SCHEDULED" | "ACTIVE" | "CLOSED" | "ARCHIVED"; startsAt: Date; endsAt: Date }, now: Date) {
+  if (poll.status === "ARCHIVED") return "archived" as const;
+  if (poll.status === "CLOSED" || now >= poll.endsAt) return "closed" as const;
+  return now < poll.startsAt ? ("upcoming" as const) : ("active" as const);
+}
+
+/** Polls that have a translation in this edition, grouped by what they are doing now. */
+export async function getPollList(locale: Locale): Promise<{ active: PollCard[]; upcoming: PollCard[]; closed: PollCard[] }> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("polls");
+
+  const now = new Date();
+  const [rows, counts] = await Promise.all([
+    db.poll.findMany({
+      where: { ...publicPollWhere, status: { in: ["SCHEDULED", "ACTIVE", "CLOSED"] }, translations: { some: { locale } } },
+      orderBy: { endsAt: "desc" },
+      take: 60,
+      include: { translations: { where: { locale } } },
+    }),
+    db.pollVote.groupBy({ by: ["pollId"], _count: { _all: true } }),
+  ]);
+  const totals = new Map(counts.map((c) => [c.pollId, c._count._all]));
+
+  const cards = rows.map((p): PollCard => ({
+    id: p.id,
+    slug: p.slug,
+    href: `/${locale}/public-opinions/${p.slug}`,
+    question: p.translations[0].question,
+    description: p.translations[0].description,
+    phase: livePhase(p, now),
+    startsAt: p.startsAt.toISOString(),
+    endsAt: p.endsAt.toISOString(),
+    totalVotes: totals.get(p.id) ?? 0,
+  }));
+
+  return {
+    // Ending soonest first for open polls, starting soonest first for upcoming ones.
+    active: cards.filter((c) => c.phase === "active").reverse(),
+    upcoming: cards.filter((c) => c.phase === "upcoming").sort((a, b) => a.startsAt.localeCompare(b.startsAt)),
+    closed: cards.filter((c) => c.phase === "closed"),
+  };
+}
+
+export async function getPollPage(locale: Locale, slug: string): Promise<PollPageData | null> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("polls");
+
+  const poll = await db.poll.findFirst({
+    where: { ...publicPollWhere, slug, translations: { some: { locale } } },
+    include: {
+      translations: true,
+      options: { orderBy: { sortOrder: "asc" }, include: { translations: true } },
+    },
+  });
+  if (!poll) return null;
+  const t = poll.translations.find((x) => x.locale === locale)!;
+  const totalVotes = await db.pollVote.count({ where: { pollId: poll.id } });
+
+  return {
+    id: poll.id,
+    slug: poll.slug,
+    href: `/${locale}/public-opinions/${poll.slug}`,
+    question: t.question,
+    description: t.description,
+    seoTitle: t.seoTitle,
+    metaDescription: t.metaDescription,
+    phase: livePhase(poll, new Date()),
+    startsAt: poll.startsAt.toISOString(),
+    endsAt: poll.endsAt.toISOString(),
+    totalVotes,
+    resultsVisibility: poll.resultsVisibility,
+    options: poll.options.map((o) => ({
+      id: o.id,
+      label: (o.translations.find((x) => x.locale === locale) ?? o.translations[0])?.label ?? "",
+    })),
+    hasOtherEdition: poll.translations.some((x) => x.locale !== locale),
+  };
+}
+
+export async function getPollSlugs(locale: Locale): Promise<string[]> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("polls");
+  const rows = await db.poll.findMany({
+    where: { ...publicPollWhere, translations: { some: { locale } } },
+    select: { slug: true },
+    orderBy: { endsAt: "desc" },
+    take: 30,
+  });
+  return rows.map((r) => r.slug);
+}

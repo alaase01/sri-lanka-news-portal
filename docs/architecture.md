@@ -78,6 +78,49 @@ Rules:
 - Uploads are images only, identified by content, re-encoded, and stored under generated names.
 - Secrets come from environment variables and never reach the browser.
 
+## Article sharing
+
+`src/components/article/ShareBar.tsx` on every article page: WhatsApp, Facebook, X, Telegram, copy link, and the device's native share sheet where the browser has one. Links are built by `src/lib/share.ts` from the article's absolute canonical URL for that edition. The bar is rendered only by the article page, which exists only for published articles, so no share link is ever produced for unpublished or hidden content. Article metadata carries Open Graph and Twitter card tags; there is no share image until image upload exists.
+
+## Public Opinions
+
+See [polls.md](polls.md). In short: one poll and one tally across both editions; a signed, server-issued device cookie; `UNIQUE(pollId, deviceHash)` in the database; whether voting is open is decided from start and end times on each request; comments are plain text and need approval.
+
+Reserved first path segments under each edition, which no category slug may use: `tag`, `page`, `public-opinions`, `developer`.
+
+## Developer credit
+
+A small "Website by …" line under the footer links to `/{locale}/developer`, a page about the site's developer. Its text and contact details live in `src/config/developer.ts`; empty contact entries are not shown.
+
+## Database additions (Increment 2)
+
+Migration `20261116010000_videos_and_polls` is additive: it drops nothing, and new columns on existing tables are nullable or defaulted.
+
+| Table | Purpose |
+| --- | --- |
+| `Poll` | Shared identity: slug, status, hidden flag, start and end times, results visibility |
+| `PollTranslation` | Question, description, SEO fields per language |
+| `PollOption`, `PollOptionTranslation` | Ordered options and their labels per language |
+| `PollVote` | One row per vote: option, device hash, identity, code name, edition, daily network hash |
+| `PollComment` | Optional comment on a vote, with moderation status |
+| `PollEvent` | Rejected and suspicious attempts, hashes only |
+| `VideoTag` | Tags on videos |
+
+`Video` gains category, status, schedule, featured flag, sort order and soft delete; `VideoTranslation` gains slug and SEO fields. Administrative poll changes will be recorded in the existing `AuditLog`, so there is no separate poll audit table.
+
+## Advertising
+
+Four positions are reserved, defined in `src/components/ads/AdSlot.tsx`:
+
+| Slot | Where | Desktop | Phone |
+| --- | --- | --- | --- |
+| `top` | Under the header on every page | 970×90 | 320×100 |
+| `home-mid` | Homepage, between Top Stories and the category sections | 970×250 | 300×250 |
+| `in-article` | After the third block of an article body | 300×250 | 300×250 |
+| `in-feed` | After the eighth story on category and tag pages | 728×90 | 300×250 |
+
+A homepage rectangle and an article sidebar were considered and dropped. Slots render nothing in production until ad management exists; in development they show labelled placeholders at their real size. The ad source (own banners, an ad network, or both) is not decided yet.
+
 ## Deferred
 
-Hosting, news alerts and advertising are decided in later increments and add no dependencies now.
+Hosting and news alerts are decided in later increments and add no dependencies now.

@@ -12,6 +12,7 @@ type Mark = { type?: unknown; attrs?: Record<string, unknown> };
 type Node = { type?: unknown; text?: unknown; attrs?: Record<string, unknown>; marks?: unknown; content?: unknown };
 
 const MAX_DEPTH = 12;
+const INSET_AFTER = 3;
 
 function safeHref(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -74,8 +75,21 @@ function renderNode(node: Node, key: number, depth: number): ReactNode {
   }
 }
 
-export function ArticleBody({ body }: { body: unknown }) {
+/**
+ * `inset` is placed after the third block of the body (an in-article ad position).
+ * A body with three blocks or fewer gets it at the end instead.
+ */
+export function ArticleBody({ body, inset }: { body: unknown; inset?: ReactNode }) {
   const doc = body as Node | null;
   if (!doc || typeof doc !== "object" || doc.type !== "doc") return null;
-  return <div className="article-body">{renderChildren(doc, 0)}</div>;
+  const blocks = renderChildren(doc, 0);
+  if (!inset) return <div className="article-body">{blocks}</div>;
+  const at = blocks.length > INSET_AFTER ? INSET_AFTER : blocks.length;
+  return (
+    <div className="article-body">
+      {blocks.slice(0, at)}
+      <div key="inset">{inset}</div>
+      {blocks.slice(at)}
+    </div>
+  );
 }

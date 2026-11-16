@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import type { Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { getTagPage, getTagSlugs } from "@/server/services/content";
-import { ArticleGrid } from "@/components/news/ArticleCards";
+import { AdSlot } from "@/components/ads/AdSlot";
+import { ArticleFeed } from "@/components/news/ArticleCards";
 import { Pagination } from "@/components/news/Pagination";
 import { parsePageNumber } from "./content-page";
 
@@ -47,6 +48,7 @@ export async function TagPage({ locale, params }: TagProps & { locale: Locale })
 
   return (
     <div className="flex flex-col gap-5">
+      <AdSlot slot="top" label={t.advertisement} />
       <header className="border-l-[5px] border-brand pl-3">
         <p className="text-sm font-semibold text-muted">{t.tag}</p>
         <h1 className="text-3xl font-bold leading-snug">{data.tag.name}</h1>
@@ -54,7 +56,7 @@ export async function TagPage({ locale, params }: TagProps & { locale: Locale })
       {data.articles.length === 0 ? (
         <p className="rounded-lg bg-white p-6 text-body">{t.noArticles}</p>
       ) : (
-        <ArticleGrid articles={data.articles} locale={locale} />
+        <ArticleFeed articles={data.articles} locale={locale} adLabel={t.advertisement} />
       )}
       <Pagination basePath={data.tag.href} page={data.page} hasNext={data.hasNext} labels={{ newer: t.newerNews, older: t.olderNews }} />
     </div>

@@ -419,9 +419,137 @@ const videos: { story: string; seconds: number; title: L }[] = [
   },
 ];
 
+/** Demo polls: one open, one upcoming, one closed with fictional votes and comments. */
+async function seedPolls(now: number) {
+  const DAY = 86_400_000;
+  const options = (labels: L[]) =>
+    labels.map((label, sortOrder) => ({
+      sortOrder,
+      translations: { create: [{ locale: "si" as const, label: label.si }, { locale: "en" as const, label: label.en }] },
+    }));
+
+  await db.poll.create({
+    data: {
+      slug: "top-development-priority",
+      status: "ACTIVE",
+      startsAt: new Date(now - 2 * DAY),
+      endsAt: new Date(now + 6 * DAY),
+      translations: {
+        create: [
+          {
+            locale: "si",
+            question: "ශ්‍රී ලංකාවේ ප්‍රධාන සංවර්ධන ප්‍රමුඛතාව කුමක් විය යුතුද?",
+            description: "ඉදිරි වසර පහ තුළ රට වැඩිපුරම අවධානය යොමු කළ යුතු ක්ෂේත්‍රය පිළිබඳ ඔබේ අදහස. මෙය ආදර්ශ මත විමසුමකි.",
+          },
+          {
+            locale: "en",
+            question: "What should be Sri Lanka's top development priority?",
+            description: "Which area should the country focus on most over the next five years? This is a demonstration poll.",
+          },
+        ],
+      },
+      options: {
+        create: options([
+          { si: "ආර්ථික සංවර්ධනය", en: "Economic development" },
+          { si: "අධ්‍යාපනය", en: "Education" },
+          { si: "සෞඛ්‍ය සේවා", en: "Healthcare" },
+          { si: "යටිතල පහසුකම්", en: "Infrastructure" },
+        ]),
+      },
+    },
+  });
+
+  // Sinhala only, to show that a poll does not need both languages.
+  await db.poll.create({
+    data: {
+      slug: "school-holiday-calendar",
+      status: "SCHEDULED",
+      startsAt: new Date(now + 3 * DAY),
+      endsAt: new Date(now + 10 * DAY),
+      translations: {
+        create: [
+          {
+            locale: "si",
+            question: "පාසල් නිවාඩු කාලසටහන වෙනස් කළ යුතුද?",
+            description: "වාර නිවාඩු කාලය සංශෝධනය කිරීමේ යෝජනාව ගැන ඔබ සිතන්නේ කුමක්ද? මෙය ආදර්ශ මත විමසුමකි.",
+          },
+        ],
+      },
+      options: {
+        create: labelsOnlySi(["ඔව්, වෙනස් කළ යුතුයි", "නැත, පවතින ආකාරය හොඳයි", "අදහසක් නැත"]),
+      },
+    },
+  });
+
+  const closed = await db.poll.create({
+    data: {
+      slug: "preferred-daily-transport",
+      status: "CLOSED",
+      startsAt: new Date(now - 12 * DAY),
+      endsAt: new Date(now - 2 * DAY),
+      translations: {
+        create: [
+          {
+            locale: "si",
+            question: "ඔබ දිනපතා ගමන් සඳහා වැඩිපුරම භාවිත කරන්නේ කුමන ප්‍රවාහන මාධ්‍යයද?",
+            description: "මෙය ආදර්ශ මත විමසුමක් වන අතර මෙහි ඡන්ද සහ අදහස් සැබෑ ඒවා නොවේ.",
+          },
+          {
+            locale: "en",
+            question: "Which form of transport do you use most for daily travel?",
+            description: "This is a demonstration poll; its votes and comments are not real.",
+          },
+        ],
+      },
+      options: {
+        create: options([
+          { si: "බස් රථ", en: "Bus" },
+          { si: "දුම්රිය", en: "Train" },
+          { si: "පෞද්ගලික වාහන", en: "Private vehicle" },
+          { si: "යතුරුපැදි හෝ ත්‍රීරෝද රථ", en: "Motorcycle or three-wheeler" },
+        ]),
+      },
+    },
+    include: { options: { orderBy: { sortOrder: "asc" } } },
+  });
+
+  const tally = [17, 9, 7, 4];
+  const comments: { option: number; name: string | null; body: string; status: "APPROVED" | "PENDING" }[] = [
+    { option: 0, name: "ගමනේ මිතුරා", body: "බස් සේවාව තවත් නිවැරදි වේලාවට ක්‍රියාත්මක වුවහොත් බොහෝ දෙනෙකුට පහසු වේවි. (ආදර්ශ අදහසකි)", status: "APPROVED" },
+    { option: 1, name: null, body: "දුම්රිය ගමන ලාභදායී නමුත් කාර්යාල වේලාවට තදබදය වැඩියි. (ආදර්ශ අදහසකි)", status: "APPROVED" },
+    { option: 2, name: "Commuter", body: "Parking in the city is the hard part. (Demonstration comment)", status: "APPROVED" },
+    { option: 3, name: null, body: "මෙය අනුමැතිය බලාපොරොත්තුවෙන් සිටින ආදර්ශ අදහසකි.", status: "PENDING" },
+  ];
+  let n = 0;
+  for (const [i, votes] of tally.entries()) {
+    for (let k = 0; k < votes; k++) {
+      const comment = k === 0 ? comments.find((c) => c.option === i) : undefined;
+      const createdAt = new Date(now - (11 - (n % 9)) * DAY);
+      await db.pollVote.create({
+        data: {
+          pollId: closed.id,
+          optionId: closed.options[i].id,
+          // Demo rows: not real devices.
+          deviceHash: `demo${String(n++).padStart(60, "0")}`,
+          identity: comment?.name ? "CODE_NAME" : "ANONYMOUS",
+          codeName: comment?.name ?? null,
+          locale: "si",
+          createdAt,
+          ...(comment ? { comment: { create: { body: comment.body, status: comment.status, createdAt } } } : {}),
+        },
+      });
+    }
+  }
+}
+
+function labelsOnlySi(labels: string[]) {
+  return labels.map((label, sortOrder) => ({ sortOrder, translations: { create: [{ locale: "si" as const, label }] } }));
+}
+
 async function main() {
   // Order matters only for RESTRICT relations; TRUNCATE ... CASCADE clears everything at once.
   await db.$executeRawUnsafe(`TRUNCATE TABLE
+    "PollComment","PollVote","PollEvent","PollOptionTranslation","PollOption","PollTranslation","Poll","VideoTag",
     "ArticleRevision","SlugRedirect","ArticleViewDaily","FeaturedArticle","BreakingNews",
     "ArticleTag","ArticleCategory","VideoTranslation","Video","ArticleTranslation","Article",
     "TagTranslation","Tag","NavigationItemTranslation","NavigationItem",
@@ -559,11 +687,15 @@ async function main() {
         youtubeId: `demo-video-${i + 1}`,
         durationSeconds: v.seconds,
         articleId: articleId.get(v.story)!,
+        categoryId: categoryId.get("entertainment")!,
+        status: "PUBLISHED",
+        isFeatured: i === 0,
+        sortOrder: i,
         publishedAt: new Date(now - (i + 3) * 3_600_000),
         translations: {
           create: [
-            { locale: "si", title: v.title.si },
-            { locale: "en", title: v.title.en },
+            { locale: "si", title: v.title.si, slug: `demo-video-${i + 1}` },
+            { locale: "en", title: v.title.en, slug: `demo-video-${i + 1}` },
           ],
         },
       },
@@ -577,9 +709,11 @@ async function main() {
     });
   }
 
+  await seedPolls(now);
+
   console.log(
     `Seeded ${stories.length} articles (${stories.filter((s) => s.en).length} with English), ` +
-      `${categoryId.size} categories, ${tags.length} tags, ${videos.length} videos.`,
+      `${categoryId.size} categories, ${tags.length} tags, ${videos.length} videos, 3 polls.`,
   );
 }
 

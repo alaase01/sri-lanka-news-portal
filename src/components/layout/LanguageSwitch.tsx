@@ -31,9 +31,12 @@ export function LanguageSwitch({ locale }: { locale: Locale }) {
   // Plain <a>: the two editions have separate root layouts, so this is a full page load.
   return (
     <div className="flex overflow-hidden rounded border border-navy-line text-sm">
-      <a lang="si" {...props("si")}>
-        සිංහල
-      </a>
+      {/* Always the Sinhala font, including on the English edition where the page font is Latin. */}
+      <span className="font-sans">
+        <a lang="si" {...props("si")} style={{ display: "block" }}>
+          සිංහල
+        </a>
+      </span>
       <span className="font-latin">
         <a lang="en" {...props("en")} style={{ display: "block" }}>
           English

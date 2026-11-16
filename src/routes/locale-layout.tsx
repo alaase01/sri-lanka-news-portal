@@ -25,8 +25,14 @@ export function layoutMetadata(locale: Locale): Metadata {
 }
 
 export async function LocaleLayout({ locale, children }: { locale: Locale; children: ReactNode }) {
-  const chrome = await getSiteChrome(locale);
   const t = getDictionary(locale);
+  const stored = await getSiteChrome(locale);
+  // Public Opinions is a fixed part of the site, not a category, so it is added
+  // here rather than stored as a navigation row.
+  const chrome = {
+    ...stored,
+    nav: [...stored.nav, { id: "public-opinions", label: t.publicOpinions, href: `/${locale}/public-opinions`, children: [] }],
+  };
   return (
     <html lang={languageTag[locale]}>
       {/* The Sinhala font's Latin letters are widely spaced, so the English edition uses the Latin stack. */}
@@ -43,7 +49,7 @@ export async function LocaleLayout({ locale, children }: { locale: Locale; child
         <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-3 py-4 sm:px-4 lg:px-6">
           {children}
         </main>
-        <Footer t={t} chrome={chrome} />
+        <Footer locale={locale} t={t} chrome={chrome} />
       </body>
     </html>
   );
