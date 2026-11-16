@@ -648,6 +648,19 @@ model AdminSession {
   @@index([expiresAt])
 }
 
+/// Every login attempt, kept for rate limiting. Holds no address or password:
+/// the email is hashed and the network is the daily-rotating keyed hash.
+model LoginAttempt {
+  id          String   @id @default(cuid())
+  emailHash   String
+  networkHash String?
+  success     Boolean
+  createdAt   DateTime @default(now())
+
+  @@index([emailHash, createdAt])
+  @@index([networkHash, createdAt])
+}
+
 /// Append-only record of administrative actions.
 model AuditLog {
   id         String   @id @default(cuid())

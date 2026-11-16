@@ -78,6 +78,13 @@ Rules:
 - Uploads are images only, identified by content, re-encoded, and stored under generated names.
 - Secrets come from environment variables and never reach the browser.
 
+## Admin area
+
+- `/admin/login` has its own root layout (`src/app/(admin-auth)`); every other admin page sits under `src/app/(admin)`, whose root layout checks the session before rendering anything.
+- Admin pages render per request (`instant = false`), are never cached, and carry `noindex`.
+- `src/proxy.ts` runs only for `/admin`: it adds a per-request nonce and strict Content Security Policy, and redirects requests without a session cookie to the login page.
+- Admin data access lives in `src/server/admin/`, authentication in `src/server/auth/`. See [security.md](security.md).
+
 ## Article sharing
 
 `src/components/article/ShareBar.tsx` on every article page: WhatsApp, Facebook, X, Telegram, copy link, and the device's native share sheet where the browser has one. Links are built by `src/lib/share.ts` from the article's absolute canonical URL for that edition. The bar is rendered only by the article page, which exists only for published articles, so no share link is ever produced for unpublished or hidden content. Article metadata carries Open Graph and Twitter card tags; there is no share image until image upload exists.
