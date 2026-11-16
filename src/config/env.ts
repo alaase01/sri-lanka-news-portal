@@ -7,6 +7,8 @@ const schema = z.object({
   // Signs voting device tokens and keys the hashes stored with votes.
   // Required in production; development falls back to a fixed, public value.
   VOTE_SECRET: z.string().min(32).optional(),
+  // Folder for uploaded images. Must persist between deployments and be backed up.
+  MEDIA_DIR: z.string().min(1).default("storage/media"),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -25,4 +27,5 @@ export const env = {
   VOTE_SECRET: parsed.data.VOTE_SECRET ?? DEV_VOTE_SECRET,
   DATABASE_URL: parsed.data.DATABASE_URL,
   SITE_URL: parsed.data.SITE_URL.replace(/\/$/, ""),
+  MEDIA_DIR: parsed.data.MEDIA_DIR,
 };

@@ -9,10 +9,12 @@ import {
   getArticlePage,
   getCategoryIndex,
   getCategoryPage,
+  getRedirectHref,
   getRootCategoryPaths,
   type ArticlePageData,
   type CategoryPageData,
 } from "@/server/services/content";
+import { mediaSrcSet, mediaUrl } from "@/lib/content/media";
 import { ArticleBody } from "@/components/article/ArticleBody";
 import { ShareBar } from "@/components/article/ShareBar";
 import { Wordmark } from "@/components/layout/Wordmark";
@@ -98,9 +100,11 @@ export async function contentMetadata(locale: Locale, props: ContentProps): Prom
       url: article.href,
       publishedTime: article.publishedAt,
       modifiedTime: article.updatedAt,
+      ...(article.image ? { images: [{ url: absoluteUrl(mediaUrl(article.image.storageKey, 1600)), alt: article.image.alt }] } : {}),
     },
-    // "summary" until articles have images; switches to a large image card with image upload.
-    twitter: { card: "summary", title: article.headline, description },
+    twitter: article.image
+      ? { card: "summary_large_image", title: article.headline, description, images: [absoluteUrl(mediaUrl(article.image.storageKey, 1600))] }
+      : { card: "summary", title: article.headline, description },
   };
 }
 
@@ -116,8 +120,13 @@ export async function ContentPage({ locale, params }: ContentProps & { locale: L
     return <CategoryView locale={locale} data={data} />;
   }
 
-  const article = await getArticlePage(locale, path[path.length - 1]);
-  if (!article) notFound();
+  const slug = path[path.length - 1];
+  const article = await getArticlePage(locale, slug);
+  if (!article) {
+    const moved = await getRedirectHref(locale, slug);
+    if (moved) permanentRedirect(moved);
+    notFound();
+  }
   // One URL per article: any other category prefix redirects to the canonical path.
   if (article.href !== `/${locale}/${path.join("/")}`) permanentRedirect(article.href);
   return <ArticleView locale={locale} article={article} />;
@@ -198,6 +207,29 @@ function ArticleView({ locale, article }: { locale: Locale; article: ArticlePage
             </span>
           )}
         </p>
+
+        {article.image && (
+          <figure className="mt-6">
+            {/* eslint-disable-next-line @next/next/no-img-element -- pre-resized WebP with srcset */}
+            <img
+              src={mediaUrl(article.image.storageKey, 960)}
+              srcSet={mediaSrcSet(article.image.storageKey, article.image.width)}
+              sizes="(min-width: 1024px) 760px, 100vw"
+              width={article.image.width}
+              height={article.image.height}
+              alt={article.image.alt}
+              fetchPriority="high"
+              className="h-auto w-full rounded-md bg-placeholder"
+            />
+            {(article.image.caption || article.image.credit) && (
+              <figcaption className="mt-2 text-sm text-muted">
+                {article.image.caption}
+                {article.image.caption && article.image.credit ? " · " : ""}
+                {article.image.credit && <span>{t.photo}: {article.image.credit}</span>}
+              </figcaption>
+            )}
+          </figure>
+        )}
 
         <div className="mt-6">
           <ArticleBody body={article.body} inset={<AdSlot slot="in-article" label={t.advertisement} />} />

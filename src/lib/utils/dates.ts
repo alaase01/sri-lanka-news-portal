@@ -67,3 +67,15 @@ export function formatRelative(iso: string, locale: Locale, now: number): string
   if (days < 7) return unit(days, "දින", "day");
   return formatDateTime(iso, locale);
 }
+
+/** "YYYY-MM-DDTHH:mm" in Sri Lanka time, for <input type="datetime-local">. */
+export function toColomboInput(date: Date): string {
+  return new Date(date.getTime() + COLOMBO_OFFSET_MS).toISOString().slice(0, 16);
+}
+
+/** Parses a datetime-local value as Sri Lanka time. Returns null for anything malformed. */
+export function fromColomboInput(value: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}:00+05:30`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}

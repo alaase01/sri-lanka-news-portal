@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { HeroSlide } from "@/server/services/content";
+import { mediaSrcSet, mediaUrl } from "@/lib/content/media";
 
 type Labels = { featured: string; readMore: string; previous: string; next: string };
 
@@ -22,7 +23,23 @@ export function HeroCarousel({ slides, labels }: { slides: HeroSlide[]; labels: 
       aria-label={labels.featured}
       className="on-dark relative flex min-h-[320px] flex-col justify-end overflow-hidden rounded-lg bg-[#1f3350] p-5 text-white sm:min-h-[400px] sm:px-[72px] sm:py-8"
     >
-      <div aria-live="polite" className="flex flex-col items-start">
+      {slide.image && (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element -- pre-resized WebP with srcset */}
+          <img
+            key={slide.id}
+            src={mediaUrl(slide.image.storageKey, 960)}
+            srcSet={mediaSrcSet(slide.image.storageKey, slide.image.width)}
+            sizes="(min-width: 1280px) 860px, 100vw"
+            alt=""
+            fetchPriority={index === 0 ? "high" : "auto"}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          {/* Darkens the lower part so white text stays readable on any photo. */}
+          <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-[#0b1f3a] via-[#0b1f3acc] to-[#0b1f3a33]" />
+        </>
+      )}
+      <div aria-live="polite" className="relative flex flex-col items-start">
         {slide.categoryName && (
           <span className="rounded-sm bg-brand px-2.5 py-0.5 text-[13px] font-semibold">{slide.categoryName}</span>
         )}

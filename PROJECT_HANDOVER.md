@@ -1,6 +1,6 @@
 # RSnewslk.com: Project Handover
 
-**As of:** 16 November 2026 (updated after the admin sign-in increment)
+**As of:** 16 November 2026 (updated after the article management increment)
 **Repository:** `sri-lanka-news-portal` (GitHub, private). Local working copy: `D:\RSNewslk`
 **Owner:** Asela
 
@@ -70,11 +70,11 @@ and testable before the next starts.
 | Sinhala font | Noto Sans Sinhala (self-hosted via Fontsource) | 5.x |
 | Tests | Vitest | 5.x |
 | Runtime | Node.js | 22+ |
-
 | Password hashing | Argon2id via `@node-rs/argon2` | 2.x |
+| Rich text editor (admin) | Tiptap (`@tiptap/react`, `starter-kit`) | 3.x |
+| Image processing | sharp | 0.35 |
 
-Not yet added, planned: Tiptap (editor), sharp (image processing), the
-Anthropic SDK (AI rewriting), Playwright (browser tests).
+Not yet added, planned: the Anthropic SDK (AI rewriting), Playwright (browser tests).
 
 ### How the application is organised
 
@@ -142,6 +142,9 @@ sri-lanka-news-portal/
 │   │   ├── (admin-auth)/admin/login/page.tsx      administrator sign-in
 │   │   ├── (admin)/layout.tsx                     checks the session, admin shell
 │   │   ├── (admin)/admin/page.tsx                 dashboard
+│   │   ├── (admin)/admin/articles/                list, new, [id]/[locale] editor
+│   │   ├── (admin)/admin/categories/, tags/, media/
+│   │   ├── media/[file]/route.ts                  serves uploaded images
 │   │   └── api/polls/[id]/
 │   │       ├── state/route.ts     GET: device's voting state, issues device cookie
 │   │       ├── vote/route.ts      POST: cast a vote
@@ -152,7 +155,7 @@ sri-lanka-news-portal/
 │   │   ├── news/                  cards, hero carousel, ticker, tabs, video panel, pagination
 │   │   ├── article/               ArticleBody (safe renderer), Breadcrumbs, ShareBar
 │   │   ├── polls/                 PollBox (form + state), PollResultsChart, PollComments
-│   │   ├── admin/                 AdminDocument, AdminShell, LoginForm
+│   │   ├── admin/                 shell, login, ArticleEditor, RichTextEditor, MediaPicker, forms, ui
 │   │   └── ads/AdSlot.tsx         reserved ad positions
 │   ├── config/
 │   │   ├── env.ts                 validated environment variables (fails fast)
@@ -161,6 +164,7 @@ sri-lanka-news-portal/
 │   │   ├── security-headers.ts    Content Security Policy and other headers
 │   │   └── developer.ts           developer page text and contact details
 │   ├── lib/                       code safe to run anywhere
+│   │   ├── content/               body allow-list, slug rules, image URLs
 │   │   ├── i18n/                  locales, si.json / en.json interface text
 │   │   ├── polls/                 phase rules, results maths, text cleaning
 │   │   ├── seo/metadata.ts        canonical URLs and hreflang
@@ -171,7 +175,8 @@ sri-lanka-news-portal/
 │       ├── services/content.ts    cached read queries for public pages
 │       ├── polls/                 device recognition, voting engine, reads, HTTP helpers
 │       ├── auth/                  passwords, sessions, sign-in actions, audit helper
-│       └── admin/dashboard.ts     dashboard figures
+│       ├── admin/                 dashboard, articles (+ actions), taxonomy (+ actions)
+│       └── media/                 image processing, storage, library, actions
 │   └── proxy.ts                   /admin: nonce CSP, signed-out redirect
 └── tests/
     ├── unit/                      polls, share, auth (passwords), admin-guard
@@ -182,9 +187,8 @@ sri-lanka-news-portal/
 
 ## 4. Database schema and important relationships
 
-37 models in `prisma/schema.prisma`. Three migrations; the first two are
-applied on the owner's machine, the third (`LoginAttempt`) must be applied with
-`npx prisma migrate dev`.
+37 models in `prisma/schema.prisma`. Three migrations, all applied on the
+owner's machine. The article-management increment needed no schema change.
 
 ### The multilingual pattern
 
@@ -234,17 +238,19 @@ erDiagram
 
 ### Rules enforced in code only (not yet in the database)
 
-- **No circular categories.** The design calls for a service check plus a
-  database trigger. Neither exists yet; the public category index merely drops
-  categories whose parent chain is broken or longer than 8 levels.
-- Maximum category depth of 3 (planned, admin-side).
-- Reserved slugs (`tag`, `page`, `public-opinions`, `developer`) must not be used
-  as top-level category slugs. Nothing prevents this yet.
+- **No circular categories** and **maximum depth 3**: checked by the admin
+  category service (`src/server/admin/taxonomy.ts`). There is no database
+  trigger, so direct database edits are not protected; the public category
+  index also drops categories whose parent chain is broken or too long.
+- **Reserved slugs** (`page`, `tag`, `public-opinions`, `developer`, `videos`,
+  `search`, `admin`, `api`, `media`) and article/category slug clashes:
+  checked in the admin services (`src/lib/content/slug.ts`).
+- Only one `SlugRedirect` per old slug, and a slug in use is never also a redirect.
 
 ### Tables that exist but nothing uses yet
 
-`AiUsageLog`, `ArticleRevision`, `SlugRedirect`, `Media`, `MediaTranslation`,
-`VideoTag`, and the `HomepageSection` types other than `CATEGORY_BLOCK`.
+`AiUsageLog`, `VideoTag`, `Author` (selectable in the editor, but no screen to
+add authors), and the `HomepageSection` types other than `CATEGORY_BLOCK`.
 
 ---
 
@@ -325,6 +331,32 @@ checked by loading the pages. Content comes from the fictional seed data.
 - Security headers on every response; strict nonce-based policy on admin pages.
 - Audit entries for sign-in, sign-out, blocked sign-ins, account creation and reset.
 
+### Admin portal: articles, categories, tags, images
+
+- **Articles** (`/admin/articles`): list with search by headline, filters by
+  language, status ("not written yet" per language) and category; pagination; bin.
+- **New article**: choose the first language, headline, slug and category; it
+  opens as a draft.
+- **Editor** (`/admin/articles/{id}/si` or `/en`): headline, summary, rich text
+  (Tiptap: H2/H3, bold, italic, links, lists, quotes, undo/redo), slug with
+  suggestion from the English headline, search title and description with
+  character counts; save draft, publish now, schedule (Sri Lanka time),
+  unpublish, cancel schedule; main and extra categories, tags, author, featured
+  image (choose from the library or upload in place). Warns before leaving with
+  unsaved changes; refuses to overwrite changes made in another tab.
+- **Second language**: its own tab; written, saved and published independently.
+- **History**: a copy at every save; any earlier copy can be restored.
+- **Slug changes after publishing** redirect the old address (308).
+- **Bin**: removes both versions from the site; restorable.
+- **Categories** (`/admin/categories`): tree view, create, edit, move, order,
+  show/hide in menu, delete when unused.
+- **Tags** (`/admin/tags`): create in one or both languages, search, edit, delete.
+- **Media library** (`/admin/media`): upload, search, edit descriptions,
+  captions and credit per language, see where an image is used, delete unused.
+- **Public site**: featured images on cards, homepage hero, article pages
+  (with caption and photo credit) and share previews (large image card).
+- Every change is in the audit log and refreshes the cached public pages.
+
 ### Developer page
 
 - `/si/developer` and `/en/developer`, content in `src/config/developer.ts`.
@@ -342,7 +374,6 @@ database structure exists but the code that uses it does not.
 | --- | --- | --- |
 | YouTube video section | `Video` status, schedule, featured flag, category, tags, slug and SEO fields; homepage video panel (thumbnail placeholder only) | Public video listing and detail pages, YouTube player, URL validation, admin screens |
 | Public Opinions administration | Full schema, voting engine, public pages, dashboard counts | Admin screens for polls, comment moderation, voting analytics |
-| Article scheduling | Query-time rule: a `SCHEDULED` translation is public once `scheduledAt` passes | Any way to set it except the database |
 | Most Read | Reads `ArticleViewDaily` | Nothing records views yet; numbers come from the seed |
 
 ---
@@ -351,20 +382,14 @@ database structure exists but the code that uses it does not.
 
 None of the following exists in the code.
 
-**Admin core (next):**
-- Article management: create, edit, save draft, preview, publish, schedule,
-  hide, archive, soft delete; Sinhala and English tabs; revisions; autosave.
-- Rich text editor (Tiptap) producing the ProseMirror JSON already used.
-- Category and tag management, with circular-parent protection.
-- Image upload: content-type check, re-encoding, resizing, thumbnails; small
-  RSnewslk.com watermark burnt into images.
-- Cache invalidation by tag on every change.
-- Audit entries for every content change.
-
-**Then:**
+**Next:**
+- Poll and comment-moderation screens (the most useful remaining admin work,
+  since comments currently cannot be approved except in the database).
 - Video management screens and public video pages (`/si/videos`), YouTube
   privacy-enhanced embed loaded only on click.
-- Poll, comment-moderation and voting-analytics screens.
+- Voting analytics screen.
+- Article preview before publishing, autosave, images inside the article text,
+  author management, permanent deletion from the bin.
 - Homepage curation: featured stories, breaking news, section order.
 - Static pages: About, Contact, Privacy, Terms, Editorial Policy (currently
   plain footer text).
@@ -480,6 +505,7 @@ Names only. Values live in `.env` (never committed); `.env.example` is the templ
 | --- | --- | --- |
 | `DATABASE_URL` | Always | PostgreSQL connection string |
 | `SITE_URL` | Production | Public origin, used for canonical URLs, share links, the article source line. Defaults to `http://localhost:3000` |
+| `MEDIA_DIR` | Optional | Folder for uploaded images; default `storage/media`. Must persist between deployments and be backed up |
 | `VOTE_SECRET` | Production (min. 32 characters) | Signs device cookies, keys vote hashes and login-attempt hashes. **Changing it makes every device look new.** Development falls back to a fixed public value |
 | `ANTHROPIC_API_KEY` | Not yet used | AI rewriting (planned) |
 | `AI_MODEL` | Not yet used | AI model name (planned) |
@@ -501,8 +527,13 @@ Names only. Values live in `.env` (never committed); `.env.example` is the templ
 
 ### Gaps and technical debt
 
-- No admin editing screens yet: content, polls and comments can only be changed
-  via the seed script or the database.
+- Polls and comments still have no admin screens (database or seed only).
+- Images are stored on the server's own disk. Hosting must provide a persistent,
+  backed-up folder, or the storage functions must be switched to object storage.
+- No preview of an unpublished article; no autosave (the editor warns before
+  leaving with unsaved changes).
+- Redirect responses carry the `Location` header twice with the same value
+  (Next.js behaviour). Browsers and search engines handle this correctly.
 - `prisma/seed.ts` **wipes all content tables**. It refuses to run with
   `NODE_ENV=production`, but must never be pointed at a real database.
 - Migrations `20261116010000_videos_and_polls` and `20261116060000_login_attempts`
@@ -514,9 +545,8 @@ Names only. Values live in `.env` (never committed); `.env.example` is the templ
   session check completes). No admin content is sent; see `docs/security.md`.
 - Public pages allow inline scripts in their Content Security Policy (they are
   cached, so they cannot use per-request nonces). Admin pages do not.
-- No circular-category protection and no reserved-slug check yet (section 4).
-- No image upload, so no images anywhere; grey blocks are placeholders.
-- Twitter card is `summary` (no image) until images exist.
+- Category integrity rules live in code only, not in the database (section 4).
+- Articles without an image still show grey placeholder blocks in listings.
 - Most Read uses seeded view counts; nothing records views.
 - Footer page links (About, Contact, policies) are plain text.
 - Search icon from the wireframe is not shown; there is no search.
@@ -532,7 +562,9 @@ Names only. Values live in `.env` (never committed); `.env.example` is the templ
 
 ### Known bugs
 
-None open. Fixed during development: the login form clearing the email after
+None open. Fixed during development: an article taking over a freed slug
+leaving the old redirect in place; links typed as `javascript:...` in the editor
+being turned into odd https links instead of refused; the login form clearing the email after
 a failed attempt (React 19 resets forms); the session cookie not being removed
 on sign-out (`__Host-` cookies need matching attributes); Sinhala dates differing between server and
 browser; the Sinhala language button rendering in the wrong font on the
@@ -542,7 +574,7 @@ English edition; old scaffold layout causing a hydration error.
 
 ## 13. Testing status and outstanding tests
 
-**Current: 93 tests, all passing** (`npm test`), plus `npm run lint` and
+**Current: 135 tests, all passing** (`npm test`), plus `npm run lint` and
 `npm run typecheck` clean.
 
 | File | Covers |
@@ -552,6 +584,9 @@ English edition; old scaffold layout causing a hydration error.
 | `tests/unit/auth.test.ts` | Password policy (including Sinhala), Argon2id format, salting, malformed hashes, email normalisation |
 | `tests/unit/admin-guard.test.ts` | Every admin page, the admin root layout, and every exported server action outside sign-in/out call `requireAdmin()` (verified to fail when a check is removed) |
 | `tests/integration/auth.test.ts` | Sign-in stores only a token hash; identical failure for wrong password and unknown account; new token per sign-in; attempts stored without the email; account and network lockouts; lockout expiry; reset after success; valid, malformed, unknown and hash-as-token sessions; idle and absolute expiry; last-seen throttling; logout; other sessions unaffected |
+| `tests/unit/content.test.ts` | Body allow-list (unknown nodes, marks and attributes dropped; `javascript:` links removed; depth limit), safe link targets, word count, slug rules and suggestions, reserved words, image URL pattern and srcset, Sri Lanka time input |
+| `tests/integration/articles.test.ts` | Create; bad, reserved, duplicate and category-clashing slugs; save with cleaned body and de-duplicated categories/tags; two-tab conflict; publish keeping first publication time; unpublish to hidden or draft; empty article cannot be published; scheduling rules; second language independent; slug redirect after publication only and its hand-over; revision restore; bin and restore; list filters; category depth, loops, subtree moves, both languages, delete rules; tags in one language, duplicates, deletion from articles |
+| `tests/integration/media.test.ts` | Re-encoding to three WebP widths; EXIF and GPS removed; no enlargement; camera rotation; SVG, HTML, GIF, tiny, oversized and truncated files refused; random storage names; alt text required; duplicate uploads reused; descriptions per language; images in use cannot be deleted; files removed on delete; serving route headers; path tricks return 404 |
 | `tests/integration/voting.test.ts` | Anonymous and code-name voting; one vote per device; voting in other polls; renaming and identity switching; 25 concurrent submissions; database constraint; different browsers; upcoming, expired, closed, archived, draft and hidden polls; wrong-poll options; missing, forged and too-new devices; fresh-device bursts; shared household network; honeypot; tallies and percentages; shared population across editions; result visibility; no identifiers leaked; 400-word limit; pending, approved and hidden comments; deletion not changing votes; markup stored as text; pagination |
 
 Integration tests need the database in `DATABASE_URL`; they create their own
@@ -562,14 +597,17 @@ canonical and hreflang tags, layouts at phone and desktop width, voting API
 over HTTP, security headers, and a scripted browser run of the admin flow
 (signed-out redirect, wrong password, sign-in, cookie flags, sign-out, forged
 cookie, lockout, no console errors under the new policies) and of casting a
-vote on the public site.
+vote on the public site; a browser run of article work (create, formatting,
+refused `javascript:` link, image upload with GPS data removed, publish, public
+page with image and share tags, slug rename redirect, two-tab conflict,
+English draft not public, category and tag creation, no console errors).
 
 **Outstanding:**
 - Browser tests in the repository (Playwright): admin sign-in flow, mobile
   menu, carousel, tabs, share bar, copy link, voting form, language switch.
 - Tests for content queries (categories, pagination, scheduling, redirects).
 - Article body renderer XSS tests.
-- Admin content, upload, search and AI tests (features not built).
+- Search and AI tests (features not built).
 - Lighthouse and accessibility audits.
 
 ---

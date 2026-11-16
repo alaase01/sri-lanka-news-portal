@@ -85,6 +85,32 @@ Rules:
 - `src/proxy.ts` runs only for `/admin`: it adds a per-request nonce and strict Content Security Policy, and redirects requests without a session cookie to the login page.
 - Admin data access lives in `src/server/admin/`, authentication in `src/server/auth/`. See [security.md](security.md).
 
+### Content editing
+
+- **Articles:** `src/server/admin/articles.ts` holds the rules; `article-actions.ts` wraps them as server actions. Each language version is saved and published on its own; category, tags, author and featured image are shared.
+- **Statuses used:** Draft, Scheduled, Published, Unpublished (`HIDDEN`). "Unpublish" returns a version that readers never saw to Draft. `IN_REVIEW` and `ARCHIVED` exist in the schema but the single-administrator workflow does not use them.
+- **Scheduling** needs no background job: a `SCHEDULED` version is public once `scheduledAt` passes, and `publishedAt` is set to the same time so listings sort correctly. Public listings are cached for minutes, so a scheduled article appears within a few minutes of its time.
+- **Body format:** ProseMirror JSON from the Tiptap editor. `src/lib/content/body.ts` is the one allow-list (paragraphs, H2/H3, bold, italic, links, lists, quotes); the server cleans every submitted body with it, and `ArticleBody.tsx` renders the same set.
+- **Revisions:** every save writes an `ArticleRevision`; restoring copies headline, summary and text back without changing status.
+- **Edits in two tabs:** each save sends the `updatedAt` it started from; a mismatch is refused instead of silently overwriting.
+- **Slug changes after publication** add a `SlugRedirect` row (old slug → translation). The public article route checks it before returning 404 and sends a 308 to the current address.
+- **Bin:** "Move to bin" sets `Article.deletedAt`; both versions leave the site at once and can be restored. Permanent deletion is not offered.
+- **Cache:** every change calls `updateTag` for the affected tags (`articles`, `homepage`, `tags`, `categories`, `navigation`), so public pages refresh on the next request.
+
+### Categories and tags
+
+- Categories: both languages required, at most three levels, no loops (a category cannot move under itself or its descendants, and a subtree cannot be moved where it would exceed three levels). Deletion only when nothing uses the category.
+- Slugs are lowercase Latin for both editions and may not use the site's own path words (`src/lib/content/slug.ts`), nor clash between articles and categories in the same language.
+- Tags may exist in one language; deleting a tag removes it from its articles.
+
+### Images
+
+- Upload through a server action (limit 8 MB, below the proxy's 10 MB body limit). The file type comes from decoding the bytes; JPEG, PNG, WebP and AVIF only (no SVG, no GIF).
+- Every image is decoded and re-encoded as WebP at 480, 960 and 1600 pixels wide (never enlarged), applying camera rotation and dropping EXIF/GPS data. The same file uploaded twice reuses the first record (SHA-256 checksum).
+- Files are stored on local disk under `MEDIA_DIR` with random names (`<2 chars>/<32 hex>-<width>.webp`) and served by `src/app/media/[file]/route.ts`, which accepts only that exact name pattern and sends a one-year immutable cache header.
+- Alt text and captions are per language (`MediaTranslation`); at least one language is required. Images in use cannot be deleted.
+- Public pages show the featured image on cards, the homepage hero, the article page (with caption and credit) and in Open Graph / Twitter large-image share previews.
+
 ## Article sharing
 
 `src/components/article/ShareBar.tsx` on every article page: WhatsApp, Facebook, X, Telegram, copy link, and the device's native share sheet where the browser has one. Links are built by `src/lib/share.ts` from the article's absolute canonical URL for that edition. The bar is rendered only by the article page, which exists only for published articles, so no share link is ever produced for unpublished or hidden content. Article metadata carries Open Graph and Twitter card tags; there is no share image until image upload exists.

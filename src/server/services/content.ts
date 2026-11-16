@@ -26,8 +26,12 @@ export type CategoryNode = {
   icon: string | null;
 };
 
+/** A processed upload, ready for <img srcset>. */
+export type CardImage = { storageKey: string; width: number; height: number; alt: string };
+
 export type ArticleCard = {
   id: string;
+  image: CardImage | null;
   headline: string;
   summary: string;
   href: string;
@@ -57,8 +61,30 @@ const cardSelect = {
   publishedAt: true,
   scheduledAt: true,
   createdAt: true,
-  article: { select: { id: true, primaryCategoryId: true } },
+  locale: true,
+  article: {
+    select: {
+      id: true,
+      primaryCategoryId: true,
+      featuredMedia: { select: { storageKey: true, width: true, height: true, translations: { select: { locale: true, altText: true, caption: true } } } },
+    },
+  },
 } satisfies Prisma.ArticleTranslationSelect;
+
+type MediaRow = {
+  storageKey: string;
+  width: number;
+  height: number;
+  translations: { locale: Locale; altText: string; caption: string | null }[];
+};
+
+/** Alt text in the reader's language, falling back to the other language. */
+function cardImage(media: MediaRow | null, locale: Locale): CardImage | null {
+  if (!media) return null;
+  const own = media.translations.find((t) => t.locale === locale);
+  const alt = own?.altText ?? media.translations[0]?.altText ?? "";
+  return { storageKey: media.storageKey, width: media.width, height: media.height, alt };
+}
 
 type CardRow = Prisma.ArticleTranslationGetPayload<{ select: typeof cardSelect }>;
 
@@ -70,6 +96,7 @@ function toCard(row: CardRow, locale: Locale, byId: Map<string, CategoryNode>): 
   const category = byId.get(row.article.primaryCategoryId);
   return {
     id: row.article.id,
+    image: cardImage(row.article.featuredMedia, locale),
     headline: row.headline,
     summary: row.summary,
     href: articleHref(locale, category, row.slug),
@@ -439,6 +466,7 @@ export async function getTagPage(locale: Locale, slug: string, page: number): Pr
 
 export type ArticlePageData = {
   id: string;
+  image: (CardImage & { caption: string | null; credit: string | null }) | null;
   headline: string;
   summary: string;
   body: unknown;
@@ -466,6 +494,7 @@ export async function getArticlePage(locale: Locale, slug: string): Promise<Arti
     include: {
       article: {
         include: {
+          featuredMedia: { select: { storageKey: true, width: true, height: true, credit: true, translations: { select: { locale: true, altText: true, caption: true } } } },
           author: { include: { translations: { where: { locale } } } },
           tags: { include: { tag: { include: { translations: { where: { locale } } } } } },
           translations: {
@@ -510,8 +539,14 @@ export async function getArticlePage(locale: Locale, slug: string): Promise<Arti
 
   const publishedAt = row.publishedAt ?? row.scheduledAt ?? row.createdAt;
 
+  const media = row.article.featuredMedia;
+  const image = cardImage(media, locale);
+
   return {
     id: row.articleId,
+    image: image && media
+      ? { ...image, caption: media.translations.find((t) => t.locale === locale)?.caption ?? null, credit: media.credit }
+      : null,
     headline: row.headline,
     summary: row.summary,
     body: row.body,
@@ -529,6 +564,23 @@ export async function getArticlePage(locale: Locale, slug: string): Promise<Arti
     alternate,
     related: relatedRows.map((r) => toCard(r, locale, byId)),
   };
+}
+
+/**
+ * Where an article's old slug now lives. Editors can change a slug after
+ * publishing; links already shared keep working through a permanent redirect.
+ */
+export async function getRedirectHref(locale: Locale, oldSlug: string): Promise<string | null> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("articles");
+  const r = await db.slugRedirect.findUnique({
+    where: { locale_oldPath: { locale, oldPath: oldSlug } },
+    select: { translation: { select: { slug: true } } },
+  });
+  if (!r) return null;
+  const article = await getArticlePage(locale, r.translation.slug);
+  return article?.href ?? null;
 }
 
 /** A few tag slugs, used to prerender tag pages at build time. */

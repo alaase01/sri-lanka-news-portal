@@ -6,10 +6,10 @@ import { Wordmark } from "@/components/layout/Wordmark";
 /** Sections of the admin portal. Entries without `href` are not built yet and shown as such. */
 const NAV: { label: string; href?: string }[] = [
   { label: "Dashboard", href: "/admin" },
-  { label: "Articles" },
-  { label: "Categories" },
-  { label: "Tags" },
-  { label: "Media" },
+  { label: "Articles", href: "/admin/articles" },
+  { label: "Categories", href: "/admin/categories" },
+  { label: "Tags", href: "/admin/tags" },
+  { label: "Media", href: "/admin/media" },
   { label: "Videos" },
   { label: "Public opinions" },
   { label: "Comments" },

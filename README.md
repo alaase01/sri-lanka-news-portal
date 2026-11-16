@@ -25,6 +25,7 @@ npx prisma migrate dev      # creates the tables
 npx prisma generate         # generates the database client
 npm run db:seed             # loads FICTIONAL demo content (wipes content tables first)
 npm run admin:create        # create the administrator (asks for email and password)
+                            # uploaded images are stored in storage/media (see MEDIA_DIR)
 npm run dev                 # http://localhost:3000, admin at /admin
 
 npm run build && npm start  # production build; needs the database running
@@ -41,7 +42,7 @@ npm run build && npm start  # production build; needs the database running
 | `npm run db:seed` | Replace all content with fictional demo content (refuses to run in production) |
 | `npm run admin:create` | Create the single administrator; add `-- --reset` to change the email or password and sign out all sessions |
 | `npm run typecheck` / `npm run lint` | Type checking and linting |
-| `npm test` | Unit and integration tests. The integration tests use the database in `DATABASE_URL`; they create their own polls and remove them afterwards |
+| `npm test` | Unit and integration tests. The integration tests use the database in `DATABASE_URL`; they create their own records with a unique prefix and remove them afterwards. Test uploads go to a temporary folder |
 | `npm run test:unit` | Unit tests only (no database needed) |
 
 ## Documentation
