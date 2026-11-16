@@ -223,6 +223,17 @@ export async function getSiteChrome(locale: Locale): Promise<SiteChrome> {
   };
 
   const nav: NavLink[] = [];
+  // No menu set up: show the visible main sections and their subcategories.
+  if (items.length === 0) {
+    for (const c of categories.filter((x) => !x.parentId)) {
+      nav.push({
+        id: c.id,
+        label: c.name,
+        href: c.href,
+        children: categories.filter((x) => x.parentId === c.id).map((x) => ({ id: x.id, label: x.name, href: x.href, children: [] })),
+      });
+    }
+  }
   for (const item of items.filter((i) => !i.parentId)) {
     const link = toLink(item);
     if (!link) continue;
@@ -257,7 +268,7 @@ export async function getRootCategoryPaths(locale: Locale): Promise<string[][]> 
 
 export type HeroSlide = ArticleCard;
 export type BreakingItem = { id: string; text: string; href: string };
-export type VideoCard = { id: string; title: string; durationSeconds: number; href: string | null };
+export type VideoCard = { id: string; title: string; durationSeconds: number; href: string | null; image: CardImage | null };
 export type CategoryBlock = { category: CategoryNode; articles: ArticleCard[] };
 
 export type HomepageData = {
@@ -274,7 +285,7 @@ export type HomepageData = {
 export async function getHomepage(locale: Locale): Promise<HomepageData> {
   "use cache";
   cacheLife("minutes");
-  cacheTag("articles", "homepage", "categories");
+  cacheTag("articles", "homepage", "categories", "videos");
 
   const now = new Date();
   const published = publishedWhere(locale, now);
@@ -308,10 +319,10 @@ export async function getHomepage(locale: Locale): Promise<HomepageData> {
       take: 10,
     }),
     db.video.findMany({
-      where: { isVisible: true, translations: { some: { locale } } },
-      orderBy: { publishedAt: "desc" },
+      where: publicVideoWhere(locale, new Date()),
+      orderBy: [{ isFeatured: "desc" }, { publishedAt: "desc" }],
       take: 3,
-      include: { translations: { where: { locale } } },
+      include: videoInclude(locale),
     }),
     db.homepageSection.findMany({
       where: { isEnabled: true, type: "CATEGORY_BLOCK", categoryId: { not: null } },
@@ -347,12 +358,7 @@ export async function getHomepage(locale: Locale): Promise<HomepageData> {
 
   const mostRead = viewRows.flatMap((r) => cardByArticle.get(r.articleId) ?? []).slice(0, 5);
 
-  const videos = videoRows.map((v) => ({
-    id: v.id,
-    title: v.translations[0].title,
-    durationSeconds: v.durationSeconds,
-    href: v.articleId ? (cardByArticle.get(v.articleId)?.href ?? null) : null,
-  }));
+  const videos = videoRows.map((v) => toVideoCard(v, locale));
 
   const categoryBlocks: CategoryBlock[] = [];
   for (const section of sections) {
@@ -393,6 +399,8 @@ export type CategoryPageData = ListingPage & {
   category: CategoryNode;
   crumbs: Crumb[];
   children: CategoryNode[];
+  /** Latest videos filed under this category or its subcategories (first page only). */
+  videos: VideoCard[];
 };
 
 /** Resolves a URL path such as ["politics", "parliament"] to a category, or null. */
@@ -403,7 +411,7 @@ export async function getCategoryPage(
 ): Promise<CategoryPageData | null> {
   "use cache";
   cacheLife("minutes");
-  cacheTag("articles", "categories");
+  cacheTag("articles", "categories", "videos");
 
   const categories = await getCategoryIndex(locale);
   const key = path.join("/");
@@ -421,9 +429,19 @@ export async function getCategoryPage(
     take: PAGE_SIZE + 1,
     select: cardSelect,
   });
+  const videoRows =
+    page === 1
+      ? await db.video.findMany({
+          where: { ...publicVideoWhere(locale, new Date()), categoryId: { in: withDescendants(categories, category.id) } },
+          orderBy: [{ isFeatured: "desc" }, { publishedAt: "desc" }],
+          take: 4,
+          include: videoInclude(locale),
+        })
+      : [];
 
   return {
     category,
+    videos: videoRows.map((v) => toVideoCard(v, locale)),
     crumbs: crumbsFor(category, byId),
     children: categories.filter((c) => c.parentId === category.id),
     articles: rows.slice(0, PAGE_SIZE).map((r) => toCard(r, locale, byId)),
@@ -594,6 +612,133 @@ export async function getTagSlugs(locale: Locale): Promise<string[]> {
 
 // ───────────────────────── public opinions (polls) ─────────────────────────
 
+// ───────────────────────── videos ─────────────────────────
+
+/** A video is public in an edition when published (or its scheduled time has passed) and it has a page in that language. */
+function publicVideoWhere(locale: Locale, now: Date): Prisma.VideoWhereInput {
+  return {
+    deletedAt: null,
+    isVisible: true,
+    OR: [{ status: "PUBLISHED" }, { status: "SCHEDULED", scheduledAt: { lte: now } }],
+    translations: { some: { locale, slug: { not: null } } },
+  };
+}
+
+function videoInclude(locale: Locale) {
+  return {
+    translations: { where: { locale } },
+    thumbnail: { select: { storageKey: true, width: true, height: true, translations: { select: { locale: true, altText: true, caption: true } } } },
+  } satisfies Prisma.VideoInclude;
+}
+
+type VideoRow = Prisma.VideoGetPayload<{ include: ReturnType<typeof videoInclude> }>;
+
+function toVideoCard(v: VideoRow, locale: Locale): VideoCard {
+  const t = v.translations[0];
+  return {
+    id: v.id,
+    title: t?.title ?? "",
+    durationSeconds: v.durationSeconds,
+    href: t?.slug ? `/${locale}/videos/${t.slug}` : null,
+    image: cardImage(v.thumbnail, locale),
+  };
+}
+
+export const VIDEO_PAGE_SIZE = 12;
+
+export async function getVideoList(locale: Locale, page: number): Promise<{ videos: VideoCard[]; page: number; hasNext: boolean }> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("videos");
+  const rows = await db.video.findMany({
+    where: publicVideoWhere(locale, new Date()),
+    orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
+    skip: (page - 1) * VIDEO_PAGE_SIZE,
+    take: VIDEO_PAGE_SIZE + 1,
+    include: videoInclude(locale),
+  });
+  return { videos: rows.slice(0, VIDEO_PAGE_SIZE).map((v) => toVideoCard(v, locale)), page, hasNext: rows.length > VIDEO_PAGE_SIZE };
+}
+
+export type VideoPageData = VideoCard & {
+  youtubeId: string;
+  description: string;
+  href: string;
+  seoTitle: string | null;
+  metaDescription: string | null;
+  publishedAt: string;
+  category: { name: string; href: string } | null;
+  tags: { name: string; href: string }[];
+  article: { headline: string; href: string } | null;
+  alternate: { locale: Locale; href: string } | null;
+  more: VideoCard[];
+};
+
+export async function getVideoPage(locale: Locale, slug: string): Promise<VideoPageData | null> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("videos", "articles", "categories");
+  const now = new Date();
+  const v = await db.video.findFirst({
+    where: { ...publicVideoWhere(locale, now), translations: { some: { locale, slug } } },
+    include: {
+      ...videoInclude(locale),
+      tags: { include: { tag: { include: { translations: { where: { locale } } } } } },
+    },
+  });
+  if (!v) return null;
+  const t = v.translations[0];
+  const categories = await getCategoryIndex(locale);
+  const byId = indexById(categories);
+  const category = v.categoryId ? byId.get(v.categoryId) : undefined;
+
+  const other = locale === "si" ? "en" : "si";
+  const [sibling, articleRow, moreRows] = await Promise.all([
+    db.videoTranslation.findFirst({ where: { videoId: v.id, locale: other, slug: { not: null }, video: publicVideoWhere(other, now) }, select: { slug: true } }),
+    v.articleId ? db.articleTranslation.findFirst({ where: { ...publishedWhere(locale, now), articleId: v.articleId }, select: cardSelect }) : null,
+    db.video.findMany({
+      where: { ...publicVideoWhere(locale, now), id: { not: v.id } },
+      orderBy: [{ publishedAt: "desc" }],
+      take: 4,
+      include: videoInclude(locale),
+    }),
+  ]);
+  const card = toVideoCard(v, locale);
+  return {
+    ...card,
+    href: card.href!,
+    youtubeId: v.youtubeId,
+    description: t.description ?? "",
+    seoTitle: t.seoTitle,
+    metaDescription: t.metaDescription,
+    publishedAt: (v.publishedAt ?? v.scheduledAt ?? v.createdAt).toISOString(),
+    category: category ? { name: category.name, href: category.href } : null,
+    tags: v.tags.flatMap((x) => {
+      const tr = x.tag.translations[0];
+      return tr ? [{ name: tr.name, href: `/${locale}/tag/${tr.slug}` }] : [];
+    }),
+    article: articleRow ? (() => {
+      const c = toCard(articleRow, locale, byId);
+      return { headline: c.headline, href: c.href };
+    })() : null,
+    alternate: sibling?.slug ? { locale: other, href: `/${other}/videos/${sibling.slug}` } : null,
+    more: moreRows.map((m) => toVideoCard(m, locale)),
+  };
+}
+
+/** A few slugs, used to prerender video pages at build time. */
+export async function getVideoSlugs(locale: Locale): Promise<string[]> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("videos");
+  const rows = await db.videoTranslation.findMany({
+    where: { locale, slug: { not: null }, video: publicVideoWhere(locale, new Date()) },
+    take: 20,
+    select: { slug: true },
+  });
+  return rows.flatMap((r) => (r.slug ? [r.slug] : []));
+}
+
 export type PollOptionView = { id: string; label: string };
 
 export type PollCard = {
@@ -616,6 +761,7 @@ export type PollPageData = PollCard & {
   resultsVisibility: "ALWAYS" | "AFTER_VOTE" | "AFTER_CLOSE";
   /** True when the poll also has a translation in the other edition. */
   hasOtherEdition: boolean;
+  image: CardImage | null;
 };
 
 const publicPollWhere = { deletedAt: null, isHidden: false, status: { not: "DRAFT" } } satisfies Prisma.PollWhereInput;
@@ -674,6 +820,7 @@ export async function getPollPage(locale: Locale, slug: string): Promise<PollPag
     include: {
       translations: true,
       options: { orderBy: { sortOrder: "asc" }, include: { translations: true } },
+      featuredMedia: { select: { storageKey: true, width: true, height: true, translations: { select: { locale: true, altText: true, caption: true } } } },
     },
   });
   if (!poll) return null;
@@ -698,6 +845,7 @@ export async function getPollPage(locale: Locale, slug: string): Promise<PollPag
       label: (o.translations.find((x) => x.locale === locale) ?? o.translations[0])?.label ?? "",
     })),
     hasOtherEdition: poll.translations.some((x) => x.locale !== locale),
+    image: cardImage(poll.featuredMedia, locale),
   };
 }
 

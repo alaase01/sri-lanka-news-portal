@@ -41,11 +41,24 @@ export function Header({ locale, t, chrome }: { locale: Locale; t: Dictionary; c
         </div>
       </div>
 
-      {/* Masthead: full on desktop. */}
-      <div className="mx-auto hidden max-w-7xl flex-wrap items-center gap-x-10 gap-y-3 px-6 py-5 lg:flex">
-        <Link href={home} aria-label={`${chrome.siteName} — ${t.home}`} className="flex flex-col gap-0.5">
-          <Wordmark className="text-[40px] leading-none" />
-          <span className="font-latin text-[11px] tracking-[4px] text-navy-soft">INDEPENDENT DIGITAL NEWS MEDIA</span>
+      {/* Masthead: full on desktop. Badge, then the wordmark and tagline beside it. */}
+      <div className="mx-auto hidden max-w-7xl flex-wrap items-center gap-x-8 gap-y-3 px-6 py-3 lg:flex">
+        <Link href={home} aria-label={`${chrome.siteName} — ${t.home}`} className="flex items-center gap-5">
+          {/* eslint-disable-next-line @next/next/no-img-element -- small static image with srcset; no optimisation needed */}
+          <img
+            src="/brand/rsnewslk-badge-112.webp"
+            srcSet="/brand/rsnewslk-badge-112.webp 1x, /brand/rsnewslk-badge-224.webp 2x, /brand/rsnewslk-badge-336.webp 3x"
+            width={112}
+            height={112}
+            // The link's label already names the site; the badge itself is decorative here.
+            alt=""
+            fetchPriority="high"
+            className="h-28 w-28 shrink-0"
+          />
+          <span className="flex flex-col gap-0.5">
+            <Wordmark className="text-[40px] leading-none" />
+            <span className="font-latin text-[11px] tracking-[4px] text-navy-soft">INDEPENDENT DIGITAL NEWS MEDIA</span>
+          </span>
         </Link>
         {chrome.tagline && (
           <p className="max-w-md border-l-2 border-navy-line pl-6 text-[17px] font-medium leading-relaxed">

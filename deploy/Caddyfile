@@ -1,0 +1,28 @@
+# Web server for RSnewslk.com: HTTPS certificates (Let's Encrypt, renewed
+# automatically), compression, and forwarding to the site on port 3000.
+# Copy to /etc/caddy/Caddyfile, then: sudo systemctl reload caddy
+
+rsnewslk.com {
+	encode zstd gzip
+
+	# Image uploads are limited to 8 MB by the site; allow a little more for the form around them.
+	request_body {
+		max_size 10MB
+	}
+
+	# Caddy replaces any X-Forwarded-For sent by a visitor with their real
+	# address, which the voting and sign-in limits rely on.
+	reverse_proxy 127.0.0.1:3000
+
+	log {
+		output file /var/log/caddy/rsnewslk.log {
+			roll_size 20MiB
+			roll_keep 10
+		}
+	}
+}
+
+# One address for the site: www redirects to the main domain.
+www.rsnewslk.com {
+	redir https://rsnewslk.com{uri} permanent
+}

@@ -1,0 +1,29 @@
+# Runs the RSnewslk.com site. Copy to /etc/systemd/system/rsnewslk.service, then:
+#   sudo systemctl daemon-reload && sudo systemctl enable --now rsnewslk
+[Unit]
+Description=RSnewslk.com website
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rsnews
+Group=rsnews
+WorkingDirectory=/srv/rsnewslk/app
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOSTNAME=127.0.0.1
+# Settings and secrets are read from /srv/rsnewslk/app/.env by the site itself.
+ExecStart=/usr/bin/npm start
+Restart=always
+RestartSec=5
+
+# Hardening: the site may only write to its media folder and build output.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/srv/rsnewslk/media /srv/rsnewslk/app/.next
+
+[Install]
+WantedBy=multi-user.target

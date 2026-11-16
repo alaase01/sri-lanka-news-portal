@@ -15,6 +15,7 @@ import {
   type CategoryPageData,
 } from "@/server/services/content";
 import { mediaSrcSet, mediaUrl } from "@/lib/content/media";
+import { VideoGrid } from "@/components/videos/VideoCards";
 import { ArticleBody } from "@/components/article/ArticleBody";
 import { ShareBar } from "@/components/article/ShareBar";
 import { Wordmark } from "@/components/layout/Wordmark";
@@ -157,10 +158,17 @@ function CategoryView({ locale, data }: { locale: Locale; data: CategoryPageData
         </nav>
       )}
 
-      {data.articles.length === 0 ? (
-        <p className="rounded-lg bg-white p-6 text-body">{t.noArticles}</p>
-      ) : (
+      {data.videos.length > 0 && (
+        <section className="flex flex-col gap-3.5">
+          <SectionHeading title={t.videos} href={`/${locale}/videos`} linkLabel={t.allVideos} />
+          <VideoGrid videos={data.videos} />
+        </section>
+      )}
+
+      {data.articles.length > 0 ? (
         <ArticleFeed articles={data.articles} locale={locale} adLabel={t.advertisement} />
+      ) : (
+        data.videos.length === 0 && <p className="rounded-lg bg-white p-6 text-body">{t.noArticles}</p>
       )}
 
       <Pagination basePath={data.category.href} page={data.page} hasNext={data.hasNext} labels={{ newer: t.newerNews, older: t.olderNews }} />

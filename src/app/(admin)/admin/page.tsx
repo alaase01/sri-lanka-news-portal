@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { formatDateTime } from "@/lib/utils/dates";
 import { getDashboard } from "@/server/admin/dashboard";
 import { requireAdmin } from "@/server/auth/session";
@@ -21,15 +22,54 @@ const ACTION_LABEL: Record<string, string> = {
   "auth.login_blocked": "Sign-in blocked after repeated failures",
   "auth.admin_created": "Administrator created",
   "auth.credentials_reset": "Email or password reset",
+  "article.create": "Article created",
+  "article.save": "Article saved",
+  "article.publish": "Article published",
+  "article.schedule": "Article scheduled",
+  "article.unpublish": "Article unpublished",
+  "article.restore_revision": "Earlier article version restored",
+  "article.bin": "Article moved to the bin",
+  "article.restore": "Article restored from the bin",
+  "category.create": "Category created",
+  "category.update": "Category changed",
+  "category.delete": "Category deleted",
+  "tag.create": "Tag created",
+  "tag.update": "Tag changed",
+  "tag.delete": "Tag deleted",
+  "media.upload": "Image uploaded",
+  "media.update": "Image description changed",
+  "media.delete": "Image deleted",
+  "poll.create": "Poll created",
+  "poll.update": "Poll changed",
+  "poll.publish": "Poll published",
+  "poll.close": "Poll voting closed",
+  "poll.reopen": "Poll voting reopened",
+  "poll.archive": "Poll archived",
+  "poll.unarchive": "Poll taken out of the archive",
+  "poll.hide": "Poll hidden",
+  "poll.show": "Poll shown again",
+  "poll.unpublish": "Poll returned to draft",
+  "poll.bin": "Poll moved to the bin",
+  "poll.restore": "Poll restored from the bin",
+  "comment.approve": "Comment(s) approved",
+  "comment.hide": "Comment(s) hidden",
+  "comment.requeue": "Comment(s) returned to the queue",
 };
 
-function Stat({ label, value, note }: { label: string; value: number; note?: string }) {
-  return (
-    <div className="rounded-lg bg-white p-4">
+function Stat({ label, value, note, href }: { label: string; value: number; note?: string; href?: string }) {
+  const body = (
+    <>
       <p className="text-sm text-muted">{label}</p>
       <p className="mt-1 text-3xl font-bold">{value.toLocaleString("en-US")}</p>
       {note && <p className="mt-1 text-xs text-muted">{note}</p>}
-    </div>
+    </>
+  );
+  return href ? (
+    <Link href={href} className="block rounded-lg bg-white p-4 ring-navy hover:ring-2">
+      {body}
+    </Link>
+  ) : (
+    <div className="rounded-lg bg-white p-4">{body}</div>
   );
 }
 
@@ -44,13 +84,13 @@ export default async function DashboardPage() {
       <h1 className="text-2xl font-bold">Dashboard</h1>
 
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label="Published articles (Sinhala)" value={published?.si ?? 0} />
-        <Stat label="Published articles (English)" value={published?.en ?? 0} />
-        <Stat label="Categories" value={d.categories} />
-        <Stat label="Tags" value={d.tags} />
-        <Stat label="Active polls" value={d.polls.active} note={`${d.polls.upcoming} upcoming · ${d.polls.closed} closed`} />
+        <Stat label="Published articles (Sinhala)" value={published?.si ?? 0} href="/admin/articles?lang=si&status=PUBLISHED" />
+        <Stat label="Published articles (English)" value={published?.en ?? 0} href="/admin/articles?lang=en&status=PUBLISHED" />
+        <Stat label="Categories" value={d.categories} href="/admin/categories" />
+        <Stat label="Tags" value={d.tags} href="/admin/tags" />
+        <Stat label="Active polls" value={d.polls.active} href="/admin/polls?phase=active" note={`${d.polls.upcoming} upcoming · ${d.polls.closed} closed`} />
         <Stat label="Total votes" value={d.polls.votes} />
-        <Stat label="Comments awaiting approval" value={d.pendingComments} note={d.flaggedComments ? `${d.flaggedComments} flagged for a closer look` : undefined} />
+        <Stat label="Comments awaiting approval" value={d.pendingComments} href="/admin/comments" note={d.flaggedComments ? `${d.flaggedComments} flagged for a closer look` : undefined} />
         <Stat label="Rejected voting attempts, last 24 hours" value={d.suspicious24h} />
       </section>
 

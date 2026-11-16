@@ -357,6 +357,38 @@ checked by loading the pages. Content comes from the fictional seed data.
   (with caption and photo credit) and share previews (large image card).
 - Every change is in the audit log and refreshes the cached public pages.
 
+### Admin portal: Public Opinions and comments
+
+- **Polls** (`/admin/polls`): list with status (draft, upcoming, voting open,
+  closed, archived), vote and waiting-comment counts, search, status filter, bin.
+- **Create and edit**: Sinhala question (required) and English (optional, all or
+  nothing), background text, search fields, 2 to 10 answers (add, remove, reorder
+  while unlocked), opening and closing times in Sri Lanka time, results visibility,
+  slug (suggested from the English question), optional image.
+- **Vote protection**: once a poll has votes or has opened, answers can only be
+  reworded and the opening time is fixed; a published poll keeps its slug. Votes
+  are never edited or deleted by any admin action.
+- **Results**: per-answer bars and percentages, anonymous/code-name split, votes
+  per edition, new-device votes, votes per day, refused attempts by reason.
+- **Controls**: close now, reopen with a new closing time, archive, hide, back to
+  draft (no votes only), bin and restore.
+- **Comments** (`/admin/comments`): queue with flagged first; approve, hide or
+  re-queue, singly or in bulk; filters by status, poll and flagged.
+- Dashboard figures now link to the matching screens; the activity list names
+  every admin action. Poll images show on the public poll page and share previews.
+
+### Videos (රසවින්දන)
+
+- **Admin** (`/admin/videos`): list with thumbnails, status and featured filters, bin;
+  create and edit with a YouTube link (any format), length, Sinhala and/or English
+  title, slug, description and search fields, category, related article, tags,
+  image (or YouTube's thumbnail copied automatically), feature on the homepage;
+  save draft, publish, schedule, unpublish; unsaved-changes warning; two-tab protection.
+- **Public**: `/si/videos` and `/en/videos` (paginated), a page per video with a
+  click-to-play player from youtube-nocookie.com (no contact with YouTube before
+  play), related story, tags, share bar, more videos; the homepage video panel
+  now links to real video pages; category pages (e.g. රසවින්දන) show their videos.
+
 ### Developer page
 
 - `/si/developer` and `/en/developer`, content in `src/config/developer.ts`.
@@ -372,8 +404,6 @@ database structure exists but the code that uses it does not.
 
 | Feature | Exists | Missing |
 | --- | --- | --- |
-| YouTube video section | `Video` status, schedule, featured flag, category, tags, slug and SEO fields; homepage video panel (thumbnail placeholder only) | Public video listing and detail pages, YouTube player, URL validation, admin screens |
-| Public Opinions administration | Full schema, voting engine, public pages, dashboard counts | Admin screens for polls, comment moderation, voting analytics |
 | Most Read | Reads `ArticleViewDaily` | Nothing records views yet; numbers come from the seed |
 
 ---
@@ -383,11 +413,7 @@ database structure exists but the code that uses it does not.
 None of the following exists in the code.
 
 **Next:**
-- Poll and comment-moderation screens (the most useful remaining admin work,
-  since comments currently cannot be approved except in the database).
-- Video management screens and public video pages (`/si/videos`), YouTube
-  privacy-enhanced embed loaded only on click.
-- Voting analytics screen.
+- Poll results export (CSV); per-poll switches for code names and comments.
 - Article preview before publishing, autosave, images inside the article text,
   author management, permanent deletion from the bin.
 - Homepage curation: featured stories, breaking news, section order.
@@ -505,7 +531,7 @@ Names only. Values live in `.env` (never committed); `.env.example` is the templ
 | --- | --- | --- |
 | `DATABASE_URL` | Always | PostgreSQL connection string |
 | `SITE_URL` | Production | Public origin, used for canonical URLs, share links, the article source line. Defaults to `http://localhost:3000` |
-| `MEDIA_DIR` | Optional | Folder for uploaded images; default `storage/media`. Must persist between deployments and be backed up |
+| `MEDIA_DIR` | Optional (production: `/srv/rsnewslk/media`) | Folder for uploaded images; default `storage/media`. Must persist between deployments and be backed up |
 | `VOTE_SECRET` | Production (min. 32 characters) | Signs device cookies, keys vote hashes and login-attempt hashes. **Changing it makes every device look new.** Development falls back to a fixed public value |
 | `ANTHROPIC_API_KEY` | Not yet used | AI rewriting (planned) |
 | `AI_MODEL` | Not yet used | AI model name (planned) |
@@ -527,7 +553,6 @@ Names only. Values live in `.env` (never committed); `.env.example` is the templ
 
 ### Gaps and technical debt
 
-- Polls and comments still have no admin screens (database or seed only).
 - Images are stored on the server's own disk. Hosting must provide a persistent,
   backed-up folder, or the storage functions must be switched to object storage.
 - No preview of an unpublished article; no autosave (the editor warns before
@@ -548,12 +573,12 @@ Names only. Values live in `.env` (never committed); `.env.example` is the templ
 - Category integrity rules live in code only, not in the database (section 4).
 - Articles without an image still show grey placeholder blocks in listings.
 - Most Read uses seeded view counts; nothing records views.
+- No menu editor: the main menu is the list created by the seed or `site:init`; a new section must be added to the menu in the database until the editor exists.
 - Footer page links (About, Contact, policies) are plain text.
 - Search icon from the wireframe is not shown; there is no search.
 - Weather and social links: not shown (no provider; no links configured).
 - `PollEvent` and `LoginAttempt` rows should be purged after 30 days; no purge job exists.
 - No two-factor authentication for the administrator yet.
-- Poll featured image column exists but is not shown.
 - Share buttons use text labels, not platform logos.
 - `npm audit` reports 8 moderate advisories, all in `minimatch` inside the
   ESLint toolchain (development only). The suggested `--force` fix downgrades
@@ -574,7 +599,7 @@ English edition; old scaffold layout causing a hydration error.
 
 ## 13. Testing status and outstanding tests
 
-**Current: 135 tests, all passing** (`npm test`), plus `npm run lint` and
+**Current: 163 tests, all passing** (`npm test`), plus `npm run lint` and
 `npm run typecheck` clean.
 
 | File | Covers |
@@ -586,6 +611,9 @@ English edition; old scaffold layout causing a hydration error.
 | `tests/integration/auth.test.ts` | Sign-in stores only a token hash; identical failure for wrong password and unknown account; new token per sign-in; attempts stored without the email; account and network lockouts; lockout expiry; reset after success; valid, malformed, unknown and hash-as-token sessions; idle and absolute expiry; last-seen throttling; logout; other sessions unaffected |
 | `tests/unit/content.test.ts` | Body allow-list (unknown nodes, marks and attributes dropped; `javascript:` links removed; depth limit), safe link targets, word count, slug rules and suggestions, reserved words, image URL pattern and srcset, Sri Lanka time input |
 | `tests/integration/articles.test.ts` | Create; bad, reserved, duplicate and category-clashing slugs; save with cleaned body and de-duplicated categories/tags; two-tab conflict; publish keeping first publication time; unpublish to hidden or draft; empty article cannot be published; scheduling rules; second language independent; slug redirect after publication only and its hand-over; revision restore; bin and restore; list filters; category depth, loops, subtree moves, both languages, delete rules; tags in one language, duplicates, deletion from articles |
+| `tests/integration/poll-admin.test.ts` | Sinhala-only and two-language polls; question, answer, slug and time validation; publishing with a past closing time refused; free editing of drafts; outdated-copy save refused; slug fixed after publishing; answers and opening time locked once voted or opened, rewording and new closing time allowed, votes untouched; close, reopen, archive, unarchive; back to draft only without votes; hide and bin keep votes; phase filter; results report figures; moderation queue order, approval publishing, hide, re-queue, text and votes unchanged |
+| `tests/unit/youtube.test.ts` | Every YouTube link format, rejection of other sites and tricks, no-cookie embed address, length parsing and display |
+| `tests/integration/videos.test.ts` | Link stored as ID; link, length, title and slug validation; two-tab conflict; public only once published and only in languages present; scheduling; both editions linked; bin and restore; YouTube thumbnail import (fallback to the smaller image, unreachable, placeholder and non-image answers, existing image kept) |
 | `tests/integration/media.test.ts` | Re-encoding to three WebP widths; EXIF and GPS removed; no enlargement; camera rotation; SVG, HTML, GIF, tiny, oversized and truncated files refused; random storage names; alt text required; duplicate uploads reused; descriptions per language; images in use cannot be deleted; files removed on delete; serving route headers; path tricks return 404 |
 | `tests/integration/voting.test.ts` | Anonymous and code-name voting; one vote per device; voting in other polls; renaming and identity switching; 25 concurrent submissions; database constraint; different browsers; upcoming, expired, closed, archived, draft and hidden polls; wrong-poll options; missing, forged and too-new devices; fresh-device bursts; shared household network; honeypot; tallies and percentages; shared population across editions; result visibility; no identifiers leaked; 400-word limit; pending, approved and hidden comments; deletion not changing votes; markup stored as text; pagination |
 
@@ -600,7 +628,10 @@ cookie, lockout, no console errors under the new policies) and of casting a
 vote on the public site; a browser run of article work (create, formatting,
 refused `javascript:` link, image upload with GPS data removed, publish, public
 page with image and share tags, slug rename redirect, two-tab conflict,
-English draft not public, category and tag creation, no console errors).
+English draft not public, category and tag creation, no console errors); and
+a browser run of poll work (create with validation, reorder, publish, a
+reader's vote and comment on the public site, locked answers, comment hidden
+until approved then shown, rewording, closing, dashboard links).
 
 **Outstanding:**
 - Browser tests in the repository (Playwright): admin sign-in flow, mobile
@@ -627,28 +658,36 @@ npx prisma migrate dev        # apply migrations
 npx prisma generate           # generate the database client into src/generated
 npm run db:seed               # FICTIONAL demo content; wipes content tables
 npm run admin:create          # once: create the administrator
+# (production only, on an empty database: npm run site:init)
 npm run dev                   # http://localhost:3000, admin at /admin
 ```
 
 If pages fail with `ECONNREFUSED`, the database is not running: start Docker
 Desktop and run `docker compose up -d`, then restart `npm run dev`.
 
-### Production (when hosting is chosen)
+### Production
 
-Minimum requirements already known:
+**Status: ready to deploy, not yet deployed.** Follow the RSnewslk.com hosting
+guide (a shared document) and the files in `deploy/` (see `deploy/README.md`):
 
-1. Node.js 22+, PostgreSQL 16+.
-2. Set `DATABASE_URL`, `SITE_URL` (e.g. `https://rsnewslk.com`) and a fresh
-   random `VOTE_SECRET`.
-3. `npx prisma migrate deploy` (never `migrate dev`, never the seed), then
-   `npm run admin:create` once.
-4. `npm run build` (needs database access, because section and tag pages are
-   prerendered), then `npm start`.
-5. Serve behind HTTPS and a reverse proxy that sets `X-Forwarded-For`.
-6. Plan backups before any real content exists.
+- One Ubuntu 24.04 server (recommended: DigitalOcean Bangalore, Basic 2 GB),
+  Node.js 22 running the site as the `rsnewslk` systemd service, PostgreSQL 16 in
+  Docker bound to 127.0.0.1, Caddy for HTTPS and the www redirect.
+- Server folders: `/srv/rsnewslk/app`, `/srv/rsnewslk/media` (`MEDIA_DIR`),
+  `/srv/rsnewslk/postgres`, `/srv/rsnewslk/backups`.
+- First setup on the empty database: `npx prisma migrate deploy`,
+  `npm run site:init` (site name, slogans, sections, menu; no articles),
+  `npm run build`, `npm run admin:create`. Never the seed.
+- Nightly `deploy/backup.sh` (database dump + images, 14 days) plus provider backups.
+- Updates: `deploy/update.sh` (pull, `npm ci`, migrate, rebuild, restart; 2 to 3
+  minutes offline).
 
-Not yet prepared: Dockerfile for the app, CI pipeline, backup and restore
-scripts, security headers.
+Verified before writing the guide: a production build and run against a brand-new
+empty database after `site:init` (all main pages 200, unknown pages 404, menu
+present, no demo notice), and `caddy validate` on the Caddyfile. The full server
+procedure has not yet been run on a real server.
+
+Not yet prepared: CI pipeline, zero-downtime updates, off-site backup automation.
 
 ---
 

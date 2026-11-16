@@ -21,7 +21,7 @@ export default async function CategoriesPage({ searchParams }: { searchParams: P
         <Link href="/admin/categories/new" className={buttonPrimary + " inline-flex items-center"}>New category</Link>
       </PageHeader>
       {saved && <Notice>{saved}</Notice>}
-      <p className="text-body">Main sections and their subcategories, up to three levels. Categories appear in the site menu and in article addresses.</p>
+      <p className="text-body">Main sections and their subcategories, up to three levels. Categories appear in article addresses and on their own pages. The main menu is set separately (a menu editor is planned).</p>
       <div className="overflow-x-auto rounded-lg bg-white">
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead>
@@ -30,7 +30,7 @@ export default async function CategoriesPage({ searchParams }: { searchParams: P
               <th scope="col" className="px-4 py-3 font-semibold">Sinhala</th>
               <th scope="col" className="px-4 py-3 font-semibold">Address</th>
               <th scope="col" className="px-4 py-3 text-right font-semibold">Articles</th>
-              <th scope="col" className="px-4 py-3 font-semibold">Menu</th>
+              <th scope="col" className="px-4 py-3 font-semibold">On the site</th>
             </tr>
           </thead>
           <tbody>
@@ -43,7 +43,7 @@ export default async function CategoriesPage({ searchParams }: { searchParams: P
                 <td className="px-4 py-2.5"><LocaleText locale="si">{c.si.name}</LocaleText></td>
                 <td className="px-4 py-2.5 text-muted">{c.en.slug}</td>
                 <td className="px-4 py-2.5 text-right">{c.articleCount}</td>
-                <td className="px-4 py-2.5">{c.isVisible ? "Shown" : <span className="text-muted">Hidden</span>}</td>
+                <td className="px-4 py-2.5">{c.isVisible ? "Visible" : <span className="text-muted">Hidden</span>}</td>
               </tr>
             ))}
           </tbody>

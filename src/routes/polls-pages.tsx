@@ -3,8 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { otherLocale, type Locale } from "@/lib/i18n/config";
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionary";
-import { alternates } from "@/lib/seo/metadata";
+import { absoluteUrl, alternates } from "@/lib/seo/metadata";
 import { formatDateTime } from "@/lib/utils/dates";
+import { mediaSrcSet, mediaUrl } from "@/lib/content/media";
 import { getPollList, getPollPage, getPollSlugs, type PollCard } from "@/server/services/content";
 import { AdSlot } from "@/components/ads/AdSlot";
 import { Breadcrumbs } from "@/components/article/Breadcrumbs";
@@ -136,8 +137,16 @@ export async function pollMetadata(locale: Locale, props: PollProps): Promise<Me
     description,
     // Both editions use the same slug, so the counterpart URL is known without a lookup.
     alternates: alternates(locale, poll.href, poll.hasOtherEdition ? `${base(otherLocale(locale))}/${poll.slug}` : null),
-    openGraph: { type: "website", title: poll.question, description, url: poll.href },
-    twitter: { card: "summary", title: poll.question, description },
+    openGraph: {
+      type: "website",
+      title: poll.question,
+      description,
+      url: poll.href,
+      ...(poll.image ? { images: [{ url: absoluteUrl(mediaUrl(poll.image.storageKey, 1600)), alt: poll.image.alt }] } : {}),
+    },
+    twitter: poll.image
+      ? { card: "summary_large_image", title: poll.question, description, images: [absoluteUrl(mediaUrl(poll.image.storageKey, 1600))] }
+      : { card: "summary", title: poll.question, description },
   };
 }
 
@@ -155,6 +164,18 @@ export async function PollPage({ locale, params }: PollProps & { locale: Locale 
         <Breadcrumbs crumbs={[{ name: t.publicOpinions, href: base(locale) }]} homeHref={`/${locale}`} homeLabel={t.home} />
         <h1 className="mt-3 text-[26px] font-bold leading-[1.45] sm:text-3xl sm:leading-[1.4]">{poll.question}</h1>
         {poll.description && <p className="mt-3 whitespace-pre-line text-lg leading-relaxed text-body">{poll.description}</p>}
+        {poll.image && (
+          // eslint-disable-next-line @next/next/no-img-element -- pre-resized WebP with srcset
+          <img
+            src={mediaUrl(poll.image.storageKey, 960)}
+            srcSet={mediaSrcSet(poll.image.storageKey, poll.image.width)}
+            sizes="(min-width: 1024px) 760px, 100vw"
+            width={poll.image.width}
+            height={poll.image.height}
+            alt={poll.image.alt}
+            className="mt-4 h-auto w-full rounded-md bg-placeholder"
+          />
+        )}
         <p className="mt-4 border-t border-line pt-3 text-sm text-muted">{when(poll, locale, t)}</p>
       </header>
 

@@ -85,6 +85,10 @@ Rules:
 - `src/proxy.ts` runs only for `/admin`: it adds a per-request nonce and strict Content Security Policy, and redirects requests without a session cookie to the login page.
 - Admin data access lives in `src/server/admin/`, authentication in `src/server/auth/`. See [security.md](security.md).
 
+### Site menu
+
+The main menu comes from `NavigationItem` rows, created by the seed (development) or `npm run site:init` (production). With none at all, it falls back to the visible main sections and their subcategories. A menu editor is not built yet, so a new section does not appear in the menu by itself. A category's "Visible on the site" setting hides its page and links entirely, not only its menu entry.
+
 ### Content editing
 
 - **Articles:** `src/server/admin/articles.ts` holds the rules; `article-actions.ts` wraps them as server actions. Each language version is saved and published on its own; category, tags, author and featured image are shared.
@@ -102,6 +106,18 @@ Rules:
 - Categories: both languages required, at most three levels, no loops (a category cannot move under itself or its descendants, and a subtree cannot be moved where it would exceed three levels). Deletion only when nothing uses the category.
 - Slugs are lowercase Latin for both editions and may not use the site's own path words (`src/lib/content/slug.ts`), nor clash between articles and categories in the same language.
 - Tags may exist in one language; deleting a tag removes it from its articles.
+
+### Public Opinions
+
+See [polls.md](polls.md#administration): editing rules that protect votes, controls, results and comment moderation.
+
+### Videos
+
+- Admin: `/admin/videos` (list, filters, bin, feature), `/admin/videos/new`, `/admin/videos/{id}`; logic in `src/server/admin/videos.ts`.
+- Editors paste any YouTube link (watch, youtu.be, Shorts, live, embed) or the bare ID; only the 11-character ID is stored (`src/lib/content/youtube.ts`).
+- One status for both editions (Draft, Scheduled, Published, Unpublished, bin), with the same scheduling rule as articles. A video appears in an edition only when it has a title and slug in that language.
+- **Privacy:** pages show our own copy of the thumbnail and make no request to YouTube or Google until the reader presses play; the player is then framed from `youtube-nocookie.com` (the only host allowed in `frame-src`). When no image is chosen, the server downloads YouTube's thumbnail once on save (fixed `i.ytimg.com` URL, no redirects, 5 MB cap) and stores it through the normal upload pipeline, credited "YouTube".
+- Public pages: `/{locale}/videos` (paginated `/page/{n}`), `/{locale}/videos/{slug}` with player, description (plain text), related article, tags, share bar and more videos; the homepage panel (featured first) and the first page of a category (for example රසවින්දන) show its videos. Cache tag: `videos`.
 
 ### Images
 

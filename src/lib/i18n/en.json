@@ -102,5 +102,17 @@
   "devContact": "Get in touch",
   "devContactIntro": "Contact me to talk about your project.",
   "devNoticeTitle": "About the person who built this site",
-  "devDisclaimer": "This page is about the website's developer. It is not part of RSnewslk.com's editorial content."
+  "devDisclaimer": "This page is about the website's developer. It is not part of RSnewslk.com's editorial content.",
+  "videos": "Videos",
+  "allVideos": "All videos",
+  "videosIntro": "Video news and entertainment from RSnewslk.com.",
+  "playVideo": "Play video",
+  "videoLoadsFromYouTube": "The video loads from YouTube only when you press play.",
+  "watchOnYouTube": "Watch on YouTube",
+  "relatedStory": "Related story",
+  "moreVideos": "More videos",
+  "noVideos": "No videos yet.",
+  "videoUnavailable": "This video is not available right now.",
+  "newerVideos": "Newer videos",
+  "olderVideos": "Older videos"
 }

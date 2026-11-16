@@ -4,8 +4,9 @@
  * scripts (which Next.js needs) but nothing from other sites. Admin pages render
  * per request and get a strict nonce-based policy from src/proxy.ts.
  *
- * When YouTube embeds, an ad network or other third parties are added, their
- * hosts must be added here deliberately.
+ * Third parties are added here deliberately: so far only the YouTube player
+ * (youtube-nocookie.com, framed after the reader presses play). An ad network
+ * will need its own hosts.
  */
 
 const isDev = process.env.NODE_ENV === "development";
@@ -19,7 +20,8 @@ function policy(scriptSrc: string): string {
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
     "connect-src 'self'",
-    "frame-src 'none'",
+    // The click-to-play video player; nothing else may be framed.
+    "frame-src https://www.youtube-nocookie.com",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

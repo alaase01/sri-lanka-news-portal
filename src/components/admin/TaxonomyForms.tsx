@@ -146,8 +146,9 @@ export function CategoryForm({ initial, parents }: { initial: CategoryFormValues
       </div>
       <label className="flex items-center gap-2 font-semibold">
         <input type="checkbox" name="isVisible" checked={isVisible} onChange={(ev) => setIsVisible(ev.target.checked)} />
-        Show in the site menu
+        Visible on the site
       </label>
+      <p className="-mt-3 text-sm text-muted">When unticked, the category&rsquo;s page and links are hidden from readers. Its articles stay published under any other categories they have.</p>
       {initial.id && (
         <p className="text-sm text-muted">Changing a slug changes the address of this category&rsquo;s page. Links to its articles keep working.</p>
       )}

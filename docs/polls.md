@@ -145,9 +145,46 @@ Percentages are whole numbers that always total 100.
 Poll pages themselves are cached and identical for every visitor; everything
 specific to a device comes from these routes.
 
+## Administration
+
+Screens: `/admin/polls` (list, filters, bin), `/admin/polls/new`, `/admin/polls/{id}`
+(results, controls, edit) and `/admin/comments` (moderation queue). Logic in
+`src/server/admin/polls.ts`, actions in `poll-actions.ts`.
+
+**Editing rules that protect votes**
+
+- A draft can be changed freely.
+- Once a poll has votes, or is published and its opening time has passed, it is
+  *locked*: answers can be reworded but not added, removed or reordered, and the
+  opening time is fixed. The closing time can still change.
+- A published poll keeps its slug (shared links; polls have no redirect table).
+- Sinhala is required. English is optional, but once any English text is given,
+  the question and every answer need English too. Both editions share one tally.
+- Saves carry the version they started from; a save based on an outdated copy
+  (another tab) is refused.
+
+**Controls:** close voting now (sets `CLOSED` and the closing time to now),
+reopen a closed poll with a new closing time, archive / take out of the archive,
+hide from the site, back to draft (only with no votes), move to bin and restore.
+None of these changes or removes a vote; the bin keeps votes.
+
+**Results screen:** totals and percentages per answer, anonymous versus code-name
+votes, votes from each edition, votes from new devices, votes per day, refused
+attempts by reason, and comment counts. Counted live from the stored votes; no
+device hashes, network hashes or other voter details are shown.
+
+**Moderation:** the queue shows waiting comments with flagged ones first (oldest
+first otherwise); approve, hide or return to the queue, one at a time or in bulk.
+Only the status and moderation time change; the text and the vote never do.
+Approved comments appear on the site immediately (comments are not cached).
+
+Every change is recorded in the audit log and refreshes the cached poll pages.
+A poll's optional image (from the media library) appears on its page and in
+share previews.
+
 ## Not built yet
 
-- Admin screens for polls, comment moderation and voting analytics.
-- Audit entries for administrative poll changes (the `AuditLog` table exists).
 - The 30-day purge of `PollEvent`.
-- Optional featured image on polls (the column exists).
+- Per-poll switches to turn off code names or comments (both are always optional
+  for voters; adding switches would need two new columns).
+- Exporting results (CSV).

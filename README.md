@@ -40,6 +40,7 @@ npm run build && npm start  # production build; needs the database running
 | `npm run db:migrate` | Apply schema changes to the development database |
 | `npm run db:generate` | Regenerate the Prisma client into `src/generated` |
 | `npm run db:seed` | Replace all content with fictional demo content (refuses to run in production) |
+| `npm run site:init` | Production, empty database only: creates site settings, the starting sections and the menu (no articles). Safe to run twice |
 | `npm run admin:create` | Create the single administrator; add `-- --reset` to change the email or password and sign out all sessions |
 | `npm run typecheck` / `npm run lint` | Type checking and linting |
 | `npm test` | Unit and integration tests. The integration tests use the database in `DATABASE_URL`; they create their own records with a unique prefix and remove them afterwards. Test uploads go to a temporary folder |
@@ -49,6 +50,7 @@ npm run build && npm start  # production build; needs the database running
 
 - [docs/architecture.md](docs/architecture.md): architecture, multilingual data model, URL and SEO rules, search design, security approach, increments
 - [docs/security.md](docs/security.md): administrator sign-in, sessions, headers, audit log
+- [deploy/README.md](deploy/README.md): server files used by the hosting guide
 - [docs/polls.md](docs/polls.md): how voting works, the one-vote-per-device rule, privacy, and known limits
 - [prisma/schema.prisma](prisma/schema.prisma): the database schema
 

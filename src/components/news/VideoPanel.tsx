@@ -1,33 +1,21 @@
 import Link from "next/link";
 import type { VideoCard } from "@/server/services/content";
-
-function duration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
-
-function VideoThumb({ seconds }: { seconds: number }) {
-  return (
-    <span className="relative flex aspect-video items-center justify-center rounded-md bg-placeholder">
-      <span aria-hidden="true" className="flex h-12 w-12 items-center justify-center rounded-full bg-navy text-white">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M8 5v14l11-7z" />
-        </svg>
-      </span>
-      <span className="absolute bottom-2 right-2 rounded-sm bg-brand px-1.5 py-0.5 font-latin text-[12.5px] font-bold text-white">
-        {duration(seconds)}
-      </span>
-    </span>
-  );
-}
+import { formatDuration } from "@/lib/content/youtube";
+import { VideoThumb } from "@/components/videos/VideoCards";
 
 /** One lead video on desktop; a swipeable row on phones. */
-export function VideoPanel({ videos, title }: { videos: VideoCard[]; title: string }) {
+export function VideoPanel({ videos, title, allHref, allLabel }: { videos: VideoCard[]; title: string; allHref?: string; allLabel?: string }) {
   if (videos.length === 0) return null;
   return (
     <section className="flex flex-col overflow-hidden rounded-lg bg-white">
-      <h2 className="bg-navy px-4 py-2.5 text-[17px] font-bold text-white">{title}</h2>
+      <h2 className="flex items-center justify-between gap-2 bg-navy px-4 py-2.5 text-[17px] font-bold text-white">
+        {title}
+        {allHref && (
+          <Link href={allHref} className="text-sm font-semibold text-navy-soft hover:text-white hover:underline">
+            {allLabel} ›
+          </Link>
+        )}
+      </h2>
       <ul className="flex snap-x gap-3 overflow-x-auto p-4 lg:flex-col lg:overflow-visible">
         {videos.map((v, i) => {
           const lead = i === 0;
@@ -35,10 +23,10 @@ export function VideoPanel({ videos, title }: { videos: VideoCard[]; title: stri
             <>
               {/* Phones show every thumbnail; desktop shows it for the lead video only. */}
               <span className={lead ? "block" : "block lg:hidden"}>
-                <VideoThumb seconds={v.durationSeconds} />
+                <VideoThumb video={v} sizes="(min-width: 1024px) 400px, 240px" />
               </span>
               <span className={`mt-2 block font-semibold leading-snug ${lead ? "lg:text-[17px]" : "lg:mt-0"}`}>{v.title}</span>
-              {!lead && <span className="hidden font-latin text-[12.5px] text-muted lg:block">{duration(v.durationSeconds)}</span>}
+              {!lead && <span className="hidden font-latin text-[12.5px] text-muted lg:block">{formatDuration(v.durationSeconds)}</span>}
             </>
           );
           return (

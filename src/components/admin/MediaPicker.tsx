@@ -97,7 +97,7 @@ export function MediaPicker({ images, value, onChange }: { images: PickerImage[]
           <figcaption className="mt-1 font-sans text-xs text-muted">{selected.alt}</figcaption>
         </figure>
       ) : (
-        <p className="text-sm text-muted">No image. Articles without an image show the site logo when shared.</p>
+        <p className="text-sm text-muted">No image selected. Without one, the site logo is shown when this is shared.</p>
       )}
       <div className="flex flex-wrap gap-2">
         <button type="button" className={small} aria-expanded={open === "library"} onClick={() => setOpen(open === "library" ? "none" : "library")}>Choose</button>

@@ -41,7 +41,7 @@ export async function HomePage({ locale }: { locale: Locale }) {
           locale={locale}
           labels={{ latest: t.latest, mostRead: t.mostRead }}
         />
-        <VideoPanel videos={data.videos} title={t.videoNews} />
+        <VideoPanel videos={data.videos} title={t.videoNews} allHref={`/${locale}/videos`} allLabel={t.allVideos} />
       </div>
 
       {data.topStories.length > 0 && (

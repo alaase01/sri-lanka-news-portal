@@ -102,5 +102,17 @@
   "devContact": "සම්බන්ධ වන්න",
   "devContactIntro": "ඔබේ ව්‍යාපෘතිය ගැන කතා කිරීමට මා සම්බන්ධ කරගන්න.",
   "devNoticeTitle": "මෙම පිටුව නිර්මාණය කළ තැනැත්තා ගැන",
-  "devDisclaimer": "මෙම පිටුව වෙබ් අඩවියේ සංවර්ධකයා ගැන ය. එය RSnewslk.com හි සංස්කාරක අන්තර්ගතයේ කොටසක් නොවේ."
+  "devDisclaimer": "මෙම පිටුව වෙබ් අඩවියේ සංවර්ධකයා ගැන ය. එය RSnewslk.com හි සංස්කාරක අන්තර්ගතයේ කොටසක් නොවේ.",
+  "videos": "වීඩියෝ",
+  "allVideos": "සියලු වීඩියෝ",
+  "videosIntro": "RSnewslk.com වීඩියෝ පුවත් සහ රසවින්දන වැඩසටහන්.",
+  "playVideo": "වීඩියෝව ධාවනය කරන්න",
+  "videoLoadsFromYouTube": "ධාවනය කළ විට පමණක් වීඩියෝව YouTube වෙතින් පූරණය වේ.",
+  "watchOnYouTube": "YouTube හි බලන්න",
+  "relatedStory": "අදාළ පුවත",
+  "moreVideos": "තවත් වීඩියෝ",
+  "noVideos": "තවම වීඩියෝ නැත.",
+  "videoUnavailable": "මෙම වීඩියෝව දැනට ලබා ගත නොහැක.",
+  "newerVideos": "නවතම වීඩියෝ",
+  "olderVideos": "පැරණි වීඩියෝ"
 }

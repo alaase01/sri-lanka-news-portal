@@ -73,9 +73,15 @@ Defined in `src/config/security-headers.ts`.
 
 Public pages allow inline scripts because they are cached and identical for
 every visitor, so they cannot carry a per-request nonce. Every other source
-(scripts, frames, connections) is limited to this site. When YouTube, an ad
-network or other third parties are added, their hosts must be added to the
-policy deliberately.
+(scripts, connections) is limited to this site. The one third party allowed is
+`https://www.youtube-nocookie.com` in `frame-src`, for the video player, which
+is only created after a reader presses play. An ad network or other third
+party must be added to the policy deliberately.
+
+The server makes one kind of outgoing request: when a video has no image, it
+downloads YouTube's thumbnail from a fixed `https://i.ytimg.com/vi/<id>/…` address
+built from the validated 11-character ID, with redirects refused, an 8-second
+timeout and a 5 MB limit, and passes it through the normal image checks.
 
 ## Audit log
 

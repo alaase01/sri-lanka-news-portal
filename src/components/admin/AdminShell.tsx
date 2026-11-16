@@ -10,9 +10,9 @@ const NAV: { label: string; href?: string }[] = [
   { label: "Categories", href: "/admin/categories" },
   { label: "Tags", href: "/admin/tags" },
   { label: "Media", href: "/admin/media" },
-  { label: "Videos" },
-  { label: "Public opinions" },
-  { label: "Comments" },
+  { label: "Videos", href: "/admin/videos" },
+  { label: "Public opinions", href: "/admin/polls" },
+  { label: "Comments", href: "/admin/comments" },
   { label: "Homepage" },
   { label: "Settings" },
 ];
