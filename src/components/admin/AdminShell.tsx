@@ -13,7 +13,7 @@ const NAV: { label: string; href?: string }[] = [
   { label: "Videos", href: "/admin/videos" },
   { label: "Public opinions", href: "/admin/polls" },
   { label: "Comments", href: "/admin/comments" },
-  { label: "Homepage" },
+  { label: "Homepage", href: "/admin/homepage" },
   { label: "Settings" },
 ];
 

@@ -377,6 +377,15 @@ checked by loading the pages. Content comes from the fictional seed data.
 - Dashboard figures now link to the matching screens; the activity list names
   every admin action. Poll images show on the public poll page and share previews.
 
+### Homepage curation
+
+- `/admin/homepage`, per edition: choose and order up to 5 hero stories (optionally
+  for a set time), and up to 8 breaking-news ticker items with optional custom
+  text and an expiry (1 hour to 1 day). Category blocks (up to 8, both editions):
+  add, order, hide, remove. Story search for older stories.
+- Automatic fallbacks keep a new or quiet site full: latest stories in the hero
+  when none are chosen; the first main sections as blocks until blocks are set up.
+
 ### Videos (රසවින්දන)
 
 - **Admin** (`/admin/videos`): list with thumbnails, status and featured filters, bin;
@@ -416,7 +425,6 @@ None of the following exists in the code.
 - Poll results export (CSV); per-poll switches for code names and comments.
 - Article preview before publishing, autosave, images inside the article text,
   author management, permanent deletion from the bin.
-- Homepage curation: featured stories, breaking news, section order.
 - Static pages: About, Contact, Privacy, Terms, Editorial Policy (currently
   plain footer text).
 - Search: Sinhala normalisation, prefix and trigram matching, phonetic
@@ -599,7 +607,7 @@ English edition; old scaffold layout causing a hydration error.
 
 ## 13. Testing status and outstanding tests
 
-**Current: 163 tests, all passing** (`npm test`), plus `npm run lint` and
+**Current: 169 tests, all passing** (`npm test`), plus `npm run lint` and
 `npm run typecheck` clean.
 
 | File | Covers |
@@ -614,6 +622,7 @@ English edition; old scaffold layout causing a hydration error.
 | `tests/integration/poll-admin.test.ts` | Sinhala-only and two-language polls; question, answer, slug and time validation; publishing with a past closing time refused; free editing of drafts; outdated-copy save refused; slug fixed after publishing; answers and opening time locked once voted or opened, rewording and new closing time allowed, votes untouched; close, reopen, archive, unarchive; back to draft only without votes; hide and bin keep votes; phase filter; results report figures; moderation queue order, approval publishing, hide, re-queue, text and votes unchanged |
 | `tests/unit/youtube.test.ts` | Every YouTube link format, rejection of other sites and tricks, no-cookie embed address, length parsing and display |
 | `tests/integration/videos.test.ts` | Link stored as ID; link, length, title and slug validation; two-tab conflict; public only once published and only in languages present; scheduling; both editions linked; bin and restore; YouTube thumbnail import (fallback to the smaller image, unreachable, placeholder and non-image answers, existing image kept) |
+| `tests/integration/homepage.test.ts` | Fallbacks with nothing chosen; hero add, order, remove, per-edition, limit, unpublished and past-time refusals, ended picks dropped; ticker custom text, duplicates, length, expiry, ending kept as history; category blocks add, order, hide, remove, no fallback once set up |
 | `tests/integration/media.test.ts` | Re-encoding to three WebP widths; EXIF and GPS removed; no enlargement; camera rotation; SVG, HTML, GIF, tiny, oversized and truncated files refused; random storage names; alt text required; duplicate uploads reused; descriptions per language; images in use cannot be deleted; files removed on delete; serving route headers; path tricks return 404 |
 | `tests/integration/voting.test.ts` | Anonymous and code-name voting; one vote per device; voting in other polls; renaming and identity switching; 25 concurrent submissions; database constraint; different browsers; upcoming, expired, closed, archived, draft and hidden polls; wrong-poll options; missing, forged and too-new devices; fresh-device bursts; shared household network; honeypot; tallies and percentages; shared population across editions; result visibility; no identifiers leaked; 400-word limit; pending, approved and hidden comments; deletion not changing votes; markup stored as text; pagination |
 

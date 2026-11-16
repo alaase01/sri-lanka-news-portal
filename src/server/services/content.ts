@@ -325,7 +325,7 @@ export async function getHomepage(locale: Locale): Promise<HomepageData> {
       include: videoInclude(locale),
     }),
     db.homepageSection.findMany({
-      where: { isEnabled: true, type: "CATEGORY_BLOCK", categoryId: { not: null } },
+      where: { type: "CATEGORY_BLOCK", categoryId: { not: null } },
       orderBy: { sortOrder: "asc" },
     }),
   ]);
@@ -343,7 +343,12 @@ export async function getHomepage(locale: Locale): Promise<HomepageData> {
   });
   const cardByArticle = new Map(referenced.map((r) => [r.article.id, toCard(r, locale, byId)]));
 
-  const hero = featuredRows.flatMap((r) => cardByArticle.get(r.articleId) ?? []);
+  let hero = featuredRows.flatMap((r) => cardByArticle.get(r.articleId) ?? []);
+  // Nothing chosen (or every pick has ended): lead with the latest stories, preferring ones with a photo.
+  if (hero.length === 0) {
+    const latestAll = latestRows.map((r) => toCard(r, locale, byId));
+    hero = [...latestAll.filter((c) => c.image), ...latestAll.filter((c) => !c.image)].slice(0, 3);
+  }
   const heroIds = new Set(hero.map((h) => h.id));
 
   const breaking = breakingRows.flatMap((r) => {
@@ -360,10 +365,14 @@ export async function getHomepage(locale: Locale): Promise<HomepageData> {
 
   const videos = videoRows.map((v) => toVideoCard(v, locale));
 
+  // Blocks set up in the admin, or, when none have been set up at all, the main sections in menu order.
+  const blockCategories =
+    sections.length > 0
+      ? sections.filter((s) => s.isEnabled).flatMap((s) => (s.categoryId && byId.get(s.categoryId)) || [])
+      : categories.filter((c) => !c.parentId);
   const categoryBlocks: CategoryBlock[] = [];
-  for (const section of sections) {
-    const category = section.categoryId ? byId.get(section.categoryId) : undefined;
-    if (!category) continue;
+  for (const category of blockCategories) {
+    if (sections.length === 0 && categoryBlocks.length >= 4) break;
     const rows = await db.articleTranslation.findMany({
       where: { ...published, article: inCategories(withDescendants(categories, category.id)) },
       orderBy: { publishedAt: "desc" },

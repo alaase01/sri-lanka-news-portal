@@ -111,6 +111,14 @@ The main menu comes from `NavigationItem` rows, created by the seed (development
 
 See [polls.md](polls.md#administration): editing rules that protect votes, controls, results and comment moderation.
 
+### Homepage curation
+
+- `/admin/homepage` (logic in `src/server/admin/homepage.ts`, one action in `homepage-actions.ts`).
+- **Hero:** up to 5 stories per edition (`FeaturedArticle`), ordered, optionally ending after a set time. With none chosen or all ended, the homepage leads with the 3 latest stories, those with a photo first.
+- **Breaking-news ticker:** up to 8 items per edition (`BreakingNews`), optional custom text (140 characters), ending after 1 hour to 1 day or when taken off. Ended items are kept (`isActive = false`) as history. Hidden when empty.
+- **Category blocks:** up to 8, shared by both editions (`HomepageSection` of type `CATEGORY_BLOCK`), ordered, can be hidden. With none set up at all, the first 4 main sections that have stories are shown; once any are set up, only the shown ones appear.
+- Only stories public in that edition can be picked; a pick whose story is later unpublished simply stops showing.
+
 ### Videos
 
 - Admin: `/admin/videos` (list, filters, bin, feature), `/admin/videos/new`, `/admin/videos/{id}`; logic in `src/server/admin/videos.ts`.
