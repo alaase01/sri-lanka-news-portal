@@ -4,7 +4,7 @@ import type { Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { getTagPage, getTagSlugs } from "@/server/services/content";
 import { AdSlot } from "@/components/ads/AdSlot";
-import { ArticleFeed } from "@/components/news/ArticleCards";
+import { ArticleFeed } from "@/components/news/ArticleFeed";
 import { Pagination } from "@/components/news/Pagination";
 import { parsePageNumber } from "./content-page";
 
@@ -48,7 +48,7 @@ export async function TagPage({ locale, params }: TagProps & { locale: Locale })
 
   return (
     <div className="flex flex-col gap-5">
-      <AdSlot slot="top" label={t.advertisement} />
+      <AdSlot slot="top" label={t.advertisement} locale={locale} />
       <header className="border-l-[5px] border-brand pl-3">
         <p className="text-sm font-semibold text-muted">{t.tag}</p>
         <h1 className="text-3xl font-bold leading-snug">{data.tag.name}</h1>

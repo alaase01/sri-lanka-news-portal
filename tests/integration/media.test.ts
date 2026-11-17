@@ -68,7 +68,10 @@ describe("image processing", () => {
     const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500"><script>alert(1)</script></svg>');
     expect(await processImage(svg)).toEqual({ ok: false, error: "unsupported" });
     expect(await processImage(Buffer.from("<html><body>not an image</body></html>".repeat(10)))).toEqual({ ok: false, error: "unsupported" });
-    expect(await processImage(await photo(150, 400))).toEqual({ ok: false, error: "too_small" });
+    expect(await processImage(await photo(150, 190))).toEqual({ ok: false, error: "too_small" });
+    expect(await processImage(await photo(400, 40))).toEqual({ ok: false, error: "too_small" });
+    // A wide, short banner is fine.
+    expect((await processImage(await photo(970, 90))).ok).toBe(true);
     expect(await processImage(Buffer.alloc(9 * 1024 * 1024))).toEqual({ ok: false, error: "too_large" });
     const gif = await sharp({ create: { width: 300, height: 300, channels: 3, background: "#fff" } }).gif().toBuffer();
     expect(await processImage(gif)).toEqual({ ok: false, error: "unsupported" });

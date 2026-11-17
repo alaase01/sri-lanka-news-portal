@@ -119,6 +119,15 @@ See [polls.md](polls.md#administration): editing rules that protect votes, contr
 - **Category blocks:** up to 8, shared by both editions (`HomepageSection` of type `CATEGORY_BLOCK`), ordered, can be hidden. With none set up at all, the first 4 main sections that have stories are shown; once any are set up, only the shown ones appear.
 - Only stories public in that edition can be picked; a pick whose story is later unpublished simply stops showing.
 
+### Advertising (own banners)
+
+- Four positions (`src/lib/content/ads.ts`): top (970×90 / 320×100), homepage middle (970×250 / 300×250), inside articles (300×250), in story lists (728×90 / 300×250). Box sizes are fixed so pages never shift.
+- `/admin/ads` (`src/server/admin/ads.ts`): banners with a desktop and/or phone image, link, advertiser name, editions, start and end, on/off and order. Tables `Advertisement` and `AdStatDaily` (migration `20261117010000_advertisements`).
+- `AdSlot` (server) reads the running banners (cache tag `ads`, refreshed within minutes, so start and end times apply by themselves) and hands them to `AdRotator` (client): random first banner, cross-fade every 10 s, pauses on hover, focus, the pause button, off-screen or a background tab; no rotation for readers who ask for reduced motion. With nothing booked the slot renders nothing in production and a dashed placeholder in development.
+- Counting: a view is sent (`POST /api/ads/view`, sendBeacon) once per banner per page after it has been at least half visible for 1 s; a click passes through `/go/ad/{id}`, which redirects only to the address saved for that banner. Only daily totals per banner (Sri Lanka days) are stored; nothing about readers. Counts can be inflated by someone sending requests by hand; they are a guide, not an audited figure.
+- `ArticleFeed` (with the in-feed slot) lives in its own file because `ArticleCards` is also used in client components.
+- Uploads now accept wide, short images: the longer side must be at least 200 px and the shorter at least 50 px.
+
 ### Videos
 
 - Admin: `/admin/videos` (list, filters, bin, feature), `/admin/videos/new`, `/admin/videos/{id}`; logic in `src/server/admin/videos.ts`.

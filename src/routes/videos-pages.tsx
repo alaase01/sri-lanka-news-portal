@@ -45,7 +45,7 @@ export async function VideoListPage({ locale, ...props }: VideoListProps & { loc
   if (page > 1 && data.videos.length === 0) notFound();
   return (
     <div className="flex flex-col gap-5">
-      <AdSlot slot="top" label={t.advertisement} />
+      <AdSlot slot="top" label={t.advertisement} locale={locale} />
       <header className="border-l-[5px] border-brand pl-3">
         <h1 className="text-3xl font-bold leading-snug">{t.videos}</h1>
         <p className="mt-1 text-body">{t.videosIntro}</p>
@@ -90,7 +90,7 @@ export async function VideoPage({ locale, params }: VideoProps & { locale: Local
 
   return (
     <div className="flex flex-col gap-6">
-      <AdSlot slot="top" label={t.advertisement} />
+      <AdSlot slot="top" label={t.advertisement} locale={locale} />
       <article className="mx-auto w-full max-w-3xl rounded-lg bg-white p-4 sm:p-8">
         <nav aria-label="Breadcrumb" className="text-sm text-muted">
           <Link href={`/${locale}`} className="hover:underline">{t.home}</Link>

@@ -28,7 +28,7 @@ export async function HomePage({ locale }: { locale: Locale }) {
 
       <Ticker items={data.breaking} label={t.breaking} />
 
-      <AdSlot slot="top" label={t.advertisement} />
+      <AdSlot slot="top" label={t.advertisement} locale={locale} />
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <HeroCarousel
@@ -65,7 +65,7 @@ export async function HomePage({ locale }: { locale: Locale }) {
         </section>
       )}
 
-      <AdSlot slot="home-mid" label={t.advertisement} />
+      <AdSlot slot="home-mid" label={t.advertisement} locale={locale} />
 
       {data.categoryBlocks.length > 0 && (
         <div className="grid gap-5 md:grid-cols-2">

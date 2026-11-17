@@ -1,39 +1,36 @@
+import type { Locale } from "@/lib/i18n/config";
+import { getDictionary } from "@/lib/i18n/dictionary";
+import { AD_SLOTS, type AdSlotName } from "@/lib/content/ads";
+import { getRunningAds } from "@/server/services/ads";
+import { AdRotator } from "./AdRotator";
+
+export type { AdSlotName } from "@/lib/content/ads";
+
 /**
- * A reserved advertising position.
- *
- * The four positions and their sizes are fixed here so the layout is designed
- * around them. Until ad management exists there is nothing to show, so in
- * production a slot renders nothing; in development it draws a labelled
- * placeholder at its real size so the positions can be reviewed.
- *
- * When ads are wired in, the box must keep these exact dimensions so the page
- * does not shift as an ad loads.
+ * An advertising position. Shows the banners booked for it (managed in
+ * /admin/ads), taking turns. With none booked it shows nothing on the live
+ * site; in development it draws a labelled placeholder at its real size.
+ * The box keeps fixed dimensions so the page never shifts.
  */
-
-export type AdSlotName = "top" | "home-mid" | "in-article" | "in-feed";
-
-const SLOTS: Record<AdSlotName, { box: string; sizes: string }> = {
-  // Under the header on every page.
-  top: { box: "h-[100px] w-[320px] lg:h-[90px] lg:w-[970px]", sizes: "320×100 / 970×90" },
-  // Homepage, between Top Stories and the category sections.
-  "home-mid": { box: "h-[250px] w-[300px] lg:w-[970px]", sizes: "300×250 / 970×250" },
-  // Inside an article, after the third paragraph.
-  "in-article": { box: "h-[250px] w-[300px]", sizes: "300×250" },
-  // Category and tag listings, after the eighth story.
-  "in-feed": { box: "h-[250px] w-[300px] md:h-[90px] md:w-[728px]", sizes: "300×250 / 728×90" },
-};
-
-export function AdSlot({ slot, label }: { slot: AdSlotName; label: string }) {
-  if (process.env.NODE_ENV === "production") return null;
-  const { box, sizes } = SLOTS[slot];
+export async function AdSlot({ slot, label, locale }: { slot: AdSlotName; label: string; locale: Locale }) {
+  const { box, desktop, mobile, desktopFrom } = AD_SLOTS[slot];
+  const ads = (await getRunningAds(locale))[slot];
+  if (ads.length === 0) {
+    if (process.env.NODE_ENV === "production") return null;
+    return (
+      <aside aria-label={label} className="flex flex-col items-center gap-1">
+        <span className="text-[11px] text-muted">{label}</span>
+        <div className={`flex max-w-full items-center justify-center rounded border border-dashed border-muted bg-soft font-latin text-sm text-muted ${box}`}>
+          {slot} · {mobile.w}×{mobile.h} / {desktop.w}×{desktop.h}
+        </div>
+      </aside>
+    );
+  }
+  const t = getDictionary(locale);
   return (
     <aside aria-label={label} className="flex flex-col items-center gap-1">
       <span className="text-[11px] text-muted">{label}</span>
-      <div
-        className={`flex max-w-full items-center justify-center rounded border border-dashed border-muted bg-soft font-latin text-sm text-muted ${box}`}
-      >
-        {slot} · {sizes}
-      </div>
+      <AdRotator ads={ads} box={box} desktopFrom={desktopFrom} labels={{ pause: t.pauseAds, play: t.playAds }} />
     </aside>
   );
 }

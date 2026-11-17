@@ -81,7 +81,7 @@ export async function PollsPage({ locale }: { locale: Locale }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <AdSlot slot="top" label={t.advertisement} />
+      <AdSlot slot="top" label={t.advertisement} locale={locale} />
       <header className="border-l-[5px] border-brand pl-3">
         <h1 className="text-3xl font-bold leading-snug">{t.publicOpinions}</h1>
         <p className="mt-1 text-body">{t.pollsIntro}</p>
@@ -159,7 +159,7 @@ export async function PollPage({ locale, params }: PollProps & { locale: Locale 
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
-      <AdSlot slot="top" label={t.advertisement} />
+      <AdSlot slot="top" label={t.advertisement} locale={locale} />
       <header className="rounded-lg bg-white p-5 sm:p-6">
         <Breadcrumbs crumbs={[{ name: t.publicOpinions, href: base(locale) }]} homeHref={`/${locale}`} homeLabel={t.home} />
         <h1 className="mt-3 text-[26px] font-bold leading-[1.45] sm:text-3xl sm:leading-[1.4]">{poll.question}</h1>

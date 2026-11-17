@@ -288,6 +288,8 @@ model Media {
   authors      Author[]           @relation("AuthorPhoto")
   videos       Video[]            @relation("VideoThumbnail")
   polls        Poll[]             @relation("PollFeaturedMedia")
+  adsDesktop   Advertisement[]    @relation("AdDesktopImage")
+  adsMobile    Advertisement[]    @relation("AdMobileImage")
 
   @@index([checksum])
 }
@@ -694,4 +696,51 @@ model AiUsageLog {
   admin Admin? @relation(fields: [adminId], references: [id], onDelete: SetNull)
 
   @@index([createdAt(sort: Desc)])
+}
+
+// ─────────────────────────── Advertising (own banners) ───────────────────────────
+
+enum AdPlacement {
+  TOP
+  HOME_MID
+  IN_ARTICLE
+  IN_FEED
+}
+
+/// A banner sold directly to an advertiser. Several running banners in one
+/// position take turns (see components/ads/AdRotator.tsx).
+model Advertisement {
+  id             String      @id @default(cuid())
+  placement      AdPlacement
+  advertiser     String
+  /// Where a click goes. http(s) only; clicks pass through /go/ad/{id} to be counted.
+  linkUrl        String
+  desktopMediaId String?
+  mobileMediaId  String?
+  showSi         Boolean     @default(true)
+  showEn         Boolean     @default(true)
+  startsAt       DateTime
+  endsAt         DateTime?
+  isActive       Boolean     @default(true)
+  sortOrder      Int         @default(0)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  desktopImage Media?       @relation("AdDesktopImage", fields: [desktopMediaId], references: [id], onDelete: Restrict)
+  mobileImage  Media?       @relation("AdMobileImage", fields: [mobileMediaId], references: [id], onDelete: Restrict)
+  stats        AdStatDaily[]
+
+  @@index([placement, isActive])
+}
+
+/// Views and clicks per banner per Sri Lanka calendar day. No reader data.
+model AdStatDaily {
+  adId   String
+  day    DateTime @db.Date
+  views  Int      @default(0)
+  clicks Int      @default(0)
+
+  ad Advertisement @relation(fields: [adId], references: [id], onDelete: Cascade)
+
+  @@id([adId, day])
 }

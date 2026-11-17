@@ -13,7 +13,8 @@ import { MEDIA_WIDTHS } from "@/lib/content/media";
  * after the image data, and the original file's quirks.
  */
 
-export const UPLOAD_LIMITS = { maxBytes: 8 * 1024 * 1024, minSide: 200, maxSide: 12_000, maxPixels: 60_000_000 } as const;
+/** Banners can be wide and short (970×90), so only the longer side needs 200 pixels. */
+export const UPLOAD_LIMITS = { maxBytes: 8 * 1024 * 1024, minLongSide: 200, minShortSide: 50, maxSide: 12_000, maxPixels: 60_000_000 } as const;
 const ACCEPTED = new Set(["jpeg", "png", "webp", "avif", "heif"]);
 
 export type ProcessedImage = {
@@ -40,7 +41,7 @@ export async function processImage(input: Buffer): Promise<{ ok: true; image: Pr
   const width = rotated ? meta.height : meta.width;
   const height = rotated ? meta.width : meta.height;
   if (!width || !height) return { ok: false, error: "corrupt" };
-  if (width < UPLOAD_LIMITS.minSide || height < UPLOAD_LIMITS.minSide) return { ok: false, error: "too_small" };
+  if (Math.max(width, height) < UPLOAD_LIMITS.minLongSide || Math.min(width, height) < UPLOAD_LIMITS.minShortSide) return { ok: false, error: "too_small" };
   if (width > UPLOAD_LIMITS.maxSide || height > UPLOAD_LIMITS.maxSide) return { ok: false, error: "too_big_dimensions" };
 
   try {

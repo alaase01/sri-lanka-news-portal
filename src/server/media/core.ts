@@ -12,7 +12,7 @@ export const MEDIA_TEXT_LIMITS = { alt: 250, caption: 300, credit: 120 } as cons
 export const UPLOAD_ERROR_TEXT: Record<ProcessError | "no_alt", string> = {
   too_large: `The file is larger than ${UPLOAD_LIMITS.maxBytes / 1024 / 1024} MB. Resize or compress it first.`,
   unsupported: "Only JPEG, PNG, WebP and AVIF images can be uploaded.",
-  too_small: `The image is too small. Both sides must be at least ${UPLOAD_LIMITS.minSide} pixels.`,
+  too_small: `The image is too small. The longer side must be at least ${UPLOAD_LIMITS.minLongSide} pixels and the shorter side at least ${UPLOAD_LIMITS.minShortSide}.`,
   too_big_dimensions: `The image is too large. Neither side may be over ${UPLOAD_LIMITS.maxSide.toLocaleString("en-US")} pixels.`,
   corrupt: "The file could not be read as an image. It may be damaged.",
   no_alt: "Describe the image in at least one language (alt text). Screen readers and search engines use it.",
@@ -109,7 +109,7 @@ export async function listMedia(opts: { q?: string; page?: number; take?: number
       take,
       include: {
         translations: true,
-        _count: { select: { articles: true, authors: true, videos: true, polls: true } },
+        _count: { select: { articles: true, authors: true, videos: true, polls: true, adsDesktop: true, adsMobile: true } },
       },
     }),
   ]);
@@ -128,7 +128,7 @@ export async function listMedia(opts: { q?: string; page?: number; take?: number
       altEn: en?.altText ?? "",
       captionSi: si?.caption ?? "",
       captionEn: en?.caption ?? "",
-      uses: m._count.articles + m._count.authors + m._count.videos + m._count.polls,
+      uses: m._count.articles + m._count.authors + m._count.videos + m._count.polls + m._count.adsDesktop + m._count.adsMobile,
     };
   });
   return { items, total, page, pages: Math.max(1, Math.ceil(total / take)) };
@@ -136,7 +136,7 @@ export async function listMedia(opts: { q?: string; page?: number; take?: number
 
 export async function getMediaItems(ids: string[]): Promise<MediaItem[]> {
   if (ids.length === 0) return [];
-  const rows = await db.media.findMany({ where: { id: { in: ids } }, include: { translations: true, _count: { select: { articles: true, authors: true, videos: true, polls: true } } } });
+  const rows = await db.media.findMany({ where: { id: { in: ids } }, include: { translations: true, _count: { select: { articles: true, authors: true, videos: true, polls: true, adsDesktop: true, adsMobile: true } } } });
   return rows.map((m) => ({
     id: m.id,
     storageKey: m.storageKey,
@@ -149,7 +149,7 @@ export async function getMediaItems(ids: string[]): Promise<MediaItem[]> {
     altEn: m.translations.find((t) => t.locale === "en")?.altText ?? "",
     captionSi: m.translations.find((t) => t.locale === "si")?.caption ?? "",
     captionEn: m.translations.find((t) => t.locale === "en")?.caption ?? "",
-    uses: m._count.articles + m._count.authors + m._count.videos + m._count.polls,
+    uses: m._count.articles + m._count.authors + m._count.videos + m._count.polls + m._count.adsDesktop + m._count.adsMobile,
   }));
 }
 
@@ -170,10 +170,10 @@ export async function updateMediaText(id: string, text: MediaText): Promise<{ ok
 export async function deleteMedia(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const m = await db.media.findUnique({
     where: { id },
-    select: { storageKey: true, _count: { select: { articles: true, authors: true, videos: true, polls: true } } },
+    select: { storageKey: true, _count: { select: { articles: true, authors: true, videos: true, polls: true, adsDesktop: true, adsMobile: true } } },
   });
   if (!m) return { ok: false, error: "This image no longer exists." };
-  const uses = m._count.articles + m._count.authors + m._count.videos + m._count.polls;
+  const uses = m._count.articles + m._count.authors + m._count.videos + m._count.polls + m._count.adsDesktop + m._count.adsMobile;
   if (uses > 0) return { ok: false, error: `This image is used in ${uses} place(s). Replace it there first.` };
   await db.media.delete({ where: { id } });
   await Promise.all(MEDIA_WIDTHS.map((w) => deleteMediaFile(`${m.storageKey}-${w}.webp`).catch(() => undefined)));

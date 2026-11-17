@@ -102,6 +102,12 @@ passwords, tokens, article text or reader submissions in the log.
   (category, tag, author, image) exists, and refuse to overwrite a version
   changed in another tab.
 
+## Advertising
+
+- Banner links must be http(s); `/go/ad/{id}` redirects only to the address stored for that banner (not an open redirect) and sends `Referrer-Policy: origin`.
+- `/api/ads/view` accepts at most 10 known ids per request, same-site only (`Sec-Fetch-Site`), and stores daily counters only.
+- Banner images are ordinary uploads (re-encoded, no scripts); links carry `rel="sponsored noopener"`.
+
 ## Image uploads
 
 - Only the administrator can upload (server action with `requireAdmin()`).

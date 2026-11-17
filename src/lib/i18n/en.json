@@ -114,5 +114,7 @@
   "noVideos": "No videos yet.",
   "videoUnavailable": "This video is not available right now.",
   "newerVideos": "Newer videos",
-  "olderVideos": "Older videos"
+  "olderVideos": "Older videos",
+  "pauseAds": "Pause adverts",
+  "playAds": "Resume adverts"
 }

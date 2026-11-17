@@ -21,7 +21,8 @@ import { ShareBar } from "@/components/article/ShareBar";
 import { Wordmark } from "@/components/layout/Wordmark";
 import { Breadcrumbs } from "@/components/article/Breadcrumbs";
 import { AdSlot } from "@/components/ads/AdSlot";
-import { ArticleFeed, ArticleGrid } from "@/components/news/ArticleCards";
+import { ArticleGrid } from "@/components/news/ArticleCards";
+import { ArticleFeed } from "@/components/news/ArticleFeed";
 import { SectionHeading } from "@/components/news/SectionHeading";
 import { Pagination } from "@/components/news/Pagination";
 
@@ -137,7 +138,7 @@ function CategoryView({ locale, data }: { locale: Locale; data: CategoryPageData
   const t = getDictionary(locale);
   return (
     <div className="flex flex-col gap-5">
-      <AdSlot slot="top" label={t.advertisement} />
+      <AdSlot slot="top" label={t.advertisement} locale={locale} />
       <Breadcrumbs crumbs={data.crumbs.slice(0, -1)} homeHref={`/${locale}`} homeLabel={t.home} />
       <header className="border-l-[5px] border-brand pl-3">
         <h1 className="text-3xl font-bold leading-snug">{data.category.name}</h1>
@@ -185,7 +186,7 @@ function ArticleView({ locale, article }: { locale: Locale; article: ArticlePage
   const year = article.publishedAt.slice(0, 4);
   return (
     <div className="flex flex-col gap-8">
-      <AdSlot slot="top" label={t.advertisement} />
+      <AdSlot slot="top" label={t.advertisement} locale={locale} />
       <article className="mx-auto w-full max-w-3xl rounded-lg bg-white px-4 py-6 sm:px-8 sm:py-8">
         {/* Brand strip: sits directly above the headline so screenshots of it carry the brand. */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b-2 border-navy pb-2.5">
@@ -240,7 +241,7 @@ function ArticleView({ locale, article }: { locale: Locale; article: ArticlePage
         )}
 
         <div className="mt-6">
-          <ArticleBody body={article.body} inset={<AdSlot slot="in-article" label={t.advertisement} />} />
+          <ArticleBody body={article.body} inset={<AdSlot slot="in-article" label={t.advertisement} locale={locale} />} />
         </div>
 
         {/* Source line: attribution at the end of the text, for screenshots of the lower part. */}

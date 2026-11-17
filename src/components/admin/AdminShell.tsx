@@ -14,6 +14,7 @@ const NAV: { label: string; href?: string }[] = [
   { label: "Public opinions", href: "/admin/polls" },
   { label: "Comments", href: "/admin/comments" },
   { label: "Homepage", href: "/admin/homepage" },
+  { label: "Advertisements", href: "/admin/ads" },
   { label: "Settings" },
 ];
 
