@@ -25,9 +25,13 @@ export function Footer({ locale, t, chrome }: { locale: Locale; t: Dictionary; c
       <div className="border-t border-navy-line">
         <p className="mx-auto max-w-7xl px-4 py-3 text-xs text-[#9fb0c8] lg:px-6">
           {t.websiteBy}{" "}
-          <Link href={`/${locale}/developer`} className="underline-offset-2 hover:text-white hover:underline">
-            {developer.name}
-          </Link>
+          {developer.footerLinksToPage ? (
+            <Link href={`/${locale}/developer`} className="underline-offset-2 hover:text-white hover:underline">
+              {developer.footerCredit}
+            </Link>
+          ) : (
+            <span>{developer.footerCredit}</span>
+          )}
         </p>
       </div>
     </footer>

@@ -7,8 +7,18 @@
  */
 
 export const developer = {
-  /** Shown in the footer credit ("Website by …") and as the page heading. */
+  /** The heading of the "Hire the developer" page. */
   name: "Asela",
+
+  /** Text after "Website by" at the bottom of every page. */
+  footerCredit: "Asela Alahakoon 0716921030",
+
+  /**
+   * Whether the footer credit links to the "Hire the developer" page.
+   * The page itself stays online either way (/si/developer, /en/developer).
+   * Change to true to link it again.
+   */
+  footerLinksToPage: false,
 
   title: {
     si: "මෘදුකාංග ඉංජිනේරු සහ ක්‍රියාවලි ස්වයංක්‍රීයකරණ උපදේශක",
