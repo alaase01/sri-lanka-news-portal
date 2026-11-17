@@ -33,7 +33,7 @@ export async function HomePage({ locale }: { locale: Locale }) {
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <HeroCarousel
           slides={data.hero}
-          labels={{ featured: t.featured, readMore: t.readMore, previous: t.previous, next: t.next }}
+          labels={{ featured: t.featured, readMore: t.readMore, previous: t.previous, next: t.next, pause: t.pauseSlides, play: t.playSlides }}
         />
         <LatestTabs
           latest={data.latest}

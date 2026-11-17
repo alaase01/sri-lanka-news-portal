@@ -59,7 +59,11 @@ export default async function EditArticlePage({ params, searchParams }: { params
 
   return (
     <div className="flex max-w-7xl flex-col gap-5">
-      <Link href="/admin/articles" className="text-sm font-semibold text-navy hover:underline">← Articles</Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link href="/admin/articles" className="text-sm font-semibold text-navy hover:underline">← Articles</Link>
+        {/* A full page load, so the editor's unsaved-changes warning can fire. */}
+        <a href={`/admin/ai?article=${article.id}`} className="text-sm font-semibold text-navy hover:underline">Open in the AI Editorial Assistant</a>
+      </div>
 
       <nav aria-label="Language versions" className="flex flex-wrap gap-2 border-b border-line">
         {(["si", "en"] as const).map((l) => {

@@ -283,6 +283,8 @@ export type SaveInput = {
   scheduledAt: Date | null;
   shared: { primaryCategoryId: string; categoryIds: string[]; tagIds: string[]; authorId: string | null; featuredMediaId: string | null };
   translation: { headline: string; summary: string; body: unknown; slug: string; seoTitle: string; metaDescription: string };
+  /** Overrides the automatic note on the revision this save creates. */
+  revisionNote?: string;
 };
 
 export type SaveResult =
@@ -373,7 +375,8 @@ export async function saveArticle(input: SaveInput, now: Date): Promise<SaveResu
   const bodyJson = body as unknown as Prisma.InputJsonValue;
   const slugChanged = !!current && current.slug !== t.slug;
   const note =
-    input.intent === "publish" ? "Published" : input.intent === "schedule" ? "Scheduled" : input.intent === "unpublish" ? "Unpublished" : current ? null : "Created";
+    input.revisionNote ??
+    (input.intent === "publish" ? "Published" : input.intent === "schedule" ? "Scheduled" : input.intent === "unpublish" ? "Unpublished" : current ? null : "Created");
 
   const saved = await db.$transaction(async (tx) => {
     await tx.article.update({

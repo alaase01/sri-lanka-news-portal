@@ -59,4 +59,4 @@ npm run build && npm start  # production build; needs the database running
 1. Reading site: schema, fictional Sinhala seed content, homepage, category and article pages
 2. Admin core: login, article management, categories, tags, image upload
 3. Search: Sinhala, phonetic (Singlish) and English search with filters and suggestions
-4. AI rewriting, homepage curation, SEO, alerts, security hardening, deployment
+4. AI Editorial Assistant (done, see docs/ai-assistant.md), homepage curation, SEO, alerts, security hardening, deployment

@@ -74,7 +74,9 @@ and testable before the next starts.
 | Rich text editor (admin) | Tiptap (`@tiptap/react`, `starter-kit`) | 3.x |
 | Image processing | sharp | 0.35 |
 
-Not yet added, planned: the Anthropic SDK (AI rewriting), Playwright (browser tests).
+| AI Editorial Assistant | `@anthropic-ai/sdk` (official) | 1.9 |
+
+Not yet added, planned: Playwright (browser tests).
 
 ### How the application is organised
 
@@ -187,8 +189,9 @@ sri-lanka-news-portal/
 
 ## 4. Database schema and important relationships
 
-39 models in `prisma/schema.prisma`. Four migrations; the fourth
-(`20261117010000_advertisements`) is applied by `deploy/update.sh` on the server.
+39 models in `prisma/schema.prisma`. Five migrations; the fifth
+(`20261117020000_ai_usage_cost`, additive: a nullable `estimatedCostUsd` column
+and an index on `AiUsageLog`) is applied by `deploy/update.sh` on the server.
 
 ### The multilingual pattern
 
@@ -619,11 +622,13 @@ English edition; old scaffold layout causing a hydration error.
 
 ## 13. Testing status and outstanding tests
 
-**Current: 178 tests, all passing** (`npm test`), plus `npm run lint` and
+**Current: 204 tests, all passing** (`npm test`), plus `npm run lint` and
 `npm run typecheck` clean.
 
 | File | Covers |
 | --- | --- |
+| `tests/unit/ai.test.ts` | Markdown ⇄ article body conversion, link removal, prompt data sections, cost estimates, link validation, API key kept out of browser code |
+| `tests/integration/ai-assistant.test.ts` | AI assistant with a simulated Claude: generate, approve rules (draft update, published → suggestion, new translation, pasted → new draft), stale-edit refusal, API errors, timeouts, rate limits, bad replies, usage logging |
 | `tests/unit/polls.test.ts` | Poll phases, results visibility, percentages summing to 100, word counting (Sinhala and English), text cleaning, comment flagging, device cookie issue/verify/tamper, network hashing |
 | `tests/unit/share.test.ts` | Share URLs per platform, encoding, edition-specific URLs |
 | `tests/unit/auth.test.ts` | Password policy (including Sinhala), Argon2id format, salting, malformed hashes, email normalisation |

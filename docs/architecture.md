@@ -15,7 +15,7 @@ One Next.js application serves the public site and `/admin`, backed by one Postg
 | Validation | Zod, checked on the server for every input |
 | Authentication | Argon2id password hash; opaque session token stored as a SHA-256 hash |
 | Editor | Tiptap, saved as ProseMirror JSON |
-| AI | `AiProvider` interface with an Anthropic implementation; key held on the server |
+| AI | `AiClient` interface (`src/server/ai/client.ts`) with an Anthropic implementation using the official SDK; key held on the server. See `docs/ai-assistant.md` |
 | Images | `sharp` re-encoding on upload, behind a `MediaStorage` interface |
 
 ## Editions and URLs

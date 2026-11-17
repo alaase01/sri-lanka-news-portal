@@ -127,6 +127,17 @@ passwords, tokens, article text or reader submissions in the log.
   `VOTE_SECRET` (also used to key the login-attempt hashes).
 - Error messages name missing variables, never their values.
 
+## AI Editorial Assistant
+
+- The Anthropic API key is read from `ANTHROPIC_API_KEY` on the server only (`src/config/env.ts`, `src/server/ai/client.ts`, both `server-only`). It is never sent to the browser, returned by an action or written to logs. A test checks that no browser code imports these modules.
+- Only signed-in admins can use it: the page and both server actions call `requireAdmin()`; Next.js server actions reject cross-site requests.
+- Limits: one request at a time per admin, and `AI_HOURLY_LIMIT` / `AI_DAILY_LIMIT` requests per admin, counted from `AiUsageLog`.
+- Article text, pasted text, instructions and source links are sent inside marked data sections; the system prompt tells the model to treat them as material, not instructions. The model has no tools and can only return JSON in a fixed shape. Its Markdown reply is converted through `cleanBody`, and any link that was not in the original article is removed.
+- Source links must be http(s) without user names or passwords (at most 5). They are passed as text; nothing is fetched.
+- Provider error messages are reduced to a code; the browser sees a fixed, plain message.
+- `AiUsageLog` stores operation, model, token counts reported by the API, success/error code, estimated cost and admin — never article text.
+- Nothing is saved without "Approve and save". Published and scheduled versions are never changed: the text is stored as an "AI suggestion" revision. A save is refused if the article changed after the suggestion was generated.
+
 ## Not yet done
 
 - Malware scanning of uploads (re-encoding already discards non-image content).
