@@ -11,7 +11,9 @@ type Labels = { featured: string; readMore: string; previous: string; next: stri
 export const HERO_ROTATE_SECONDS = 5;
 
 /**
- * Featured stories, one at a time, sliding to the next every few seconds.
+ * Featured stories, one at a time. Every few seconds the next story slides in
+ * from the left, always in the same direction; after the last one the first
+ * comes round again.
  *
  * Accessibility: rotation pauses while the pointer is over the carousel or
  * keyboard focus is inside it, and the reader can stop it with the pause
@@ -20,6 +22,8 @@ export const HERO_ROTATE_SECONDS = 5;
  */
 export function HeroCarousel({ slides, labels }: { slides: HeroSlide[]; labels: Labels }) {
   const [index, setIndex] = useState(0);
+  // The story that is sliding out; null before the first change.
+  const [leaving, setLeaving] = useState<number | null>(null);
   const [paused, setPaused] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -29,12 +33,21 @@ export function HeroCarousel({ slides, labels }: { slides: HeroSlide[]; labels: 
 
   useEffect(() => {
     if (!rotating) return;
-    const timer = window.setTimeout(() => setIndex((i) => (i + 1) % count), HERO_ROTATE_SECONDS * 1000);
+    const timer = window.setTimeout(() => {
+      setLeaving(index);
+      setIndex((index + 1) % count);
+    }, HERO_ROTATE_SECONDS * 1000);
     return () => window.clearTimeout(timer);
   }, [rotating, index, count]);
 
   if (count === 0) return null;
-  const go = (step: number) => setIndex((i) => (i + step + count) % count);
+  // Every change moves the same way, left to right; after the last story comes the first.
+  const show = (next: number) => {
+    if (next === index) return;
+    setLeaving(index);
+    setIndex(next);
+  };
+  const go = (step: number) => show((index + step + count) % count);
 
   const arrow =
     "absolute top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded bg-navy text-white hover:bg-navy-deep sm:flex";
@@ -52,14 +65,13 @@ export function HeroCarousel({ slides, labels }: { slides: HeroSlide[]; labels: 
       }}
       className="on-dark relative overflow-hidden rounded-lg bg-[#1f3350] text-white"
     >
-      {/* All slides side by side; the track moves left to show the current one. Its height is the tallest slide's, so nothing jumps. */}
-      <div
-        aria-live={rotating ? "off" : "polite"}
-        className="flex transition-transform duration-700 ease-in-out motion-reduce:transition-none"
-        style={{ transform: `translateX(-${index * 100}%)` }}
-      >
+      {/* All slides share one grid cell, so the carousel is as tall as the tallest story and nothing jumps.
+          Only the current story and the one sliding out are visible. */}
+      <div aria-live={rotating ? "off" : "polite"} className="grid">
         {slides.map((slide, i) => {
           const current = i === index;
+          const motion =
+            leaving === null ? "" : current ? "motion-safe:animate-hero-in z-[1]" : i === leaving ? "motion-safe:animate-hero-out motion-reduce:invisible" : "invisible";
           return (
             <div
               key={slide.id}
@@ -68,7 +80,9 @@ export function HeroCarousel({ slides, labels }: { slides: HeroSlide[]; labels: 
               aria-label={`${i + 1} / ${count}`}
               aria-hidden={!current}
               inert={!current}
-              className="relative flex min-h-[320px] w-full shrink-0 flex-col justify-end p-5 pb-16 sm:min-h-[400px] sm:px-[72px] sm:pb-16 sm:pt-8"
+              className={`relative col-start-1 row-start-1 flex min-h-[320px] w-full flex-col justify-end p-5 pb-16 sm:min-h-[400px] sm:px-[72px] sm:pb-16 sm:pt-8 ${
+                leaving === null && !current ? "invisible" : ""
+              } ${motion}`}
             >
               {slide.image && (
                 <>
@@ -141,7 +155,7 @@ export function HeroCarousel({ slides, labels }: { slides: HeroSlide[]; labels: 
               <button
                 key={s.id}
                 type="button"
-                onClick={() => setIndex(i)}
+                onClick={() => show(i)}
                 aria-label={`${i + 1} / ${count}`}
                 aria-current={i === index ? "true" : undefined}
                 className="flex h-11 w-8 items-center justify-center"

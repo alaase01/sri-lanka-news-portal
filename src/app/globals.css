@@ -21,14 +21,36 @@
   --font-sans: "Noto Sans Sinhala Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-latin: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 
+  /* Breaking news moves left to right: the strip starts shifted by one half and slides back to 0. */
   --animate-ticker: ticker 40s linear infinite;
 
   @keyframes ticker {
     from {
+      transform: translateX(-50%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  /* Hero stories: the new story slides in from the left while the old one leaves to the right. */
+  --animate-hero-in: hero-in 700ms ease-in-out both;
+  --animate-hero-out: hero-out 700ms ease-in-out both;
+
+  @keyframes hero-in {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+  @keyframes hero-out {
+    from {
       transform: translateX(0);
     }
     to {
-      transform: translateX(-50%);
+      transform: translateX(100%);
     }
   }
 }
