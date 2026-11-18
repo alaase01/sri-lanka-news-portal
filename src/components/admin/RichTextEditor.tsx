@@ -2,6 +2,7 @@
 
 import { useEditor, EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import TextAlign from "@tiptap/extension-text-align";
 import { useState } from "react";
 import type { BodyDoc } from "@/lib/content/body";
 import { safeHref } from "@/lib/content/body";
@@ -12,9 +13,18 @@ import { safeHref } from "@/lib/content/body";
  * lists and quotes. Pasted content keeps only those; the server cleans it again.
  */
 
-type Props = { initial: BodyDoc; locale: "si" | "en"; onChange: (doc: BodyDoc) => void; invalid?: boolean; describedBy?: string };
+type Props = {
+  initial: BodyDoc;
+  locale: "si" | "en";
+  onChange: (doc: BodyDoc) => void;
+  invalid?: boolean;
+  describedBy?: string;
+  /** Offer left / centre / right / justified alignment (static pages only). */
+  allowAlign?: boolean;
+  label?: string;
+};
 
-export function RichTextEditor({ initial, locale, onChange, invalid, describedBy }: Props) {
+export function RichTextEditor({ initial, locale, onChange, invalid, describedBy, allowAlign = false, label = "Article text" }: Props) {
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -35,6 +45,7 @@ export function RichTextEditor({ initial, locale, onChange, invalid, describedBy
           HTMLAttributes: { rel: "noopener noreferrer nofollow", target: null },
         },
       }),
+      ...(allowAlign ? [TextAlign.configure({ types: ["heading", "paragraph"], alignments: ["left", "center", "right", "justify"] })] : []),
     ],
     content: initial,
     editorProps: {
@@ -43,7 +54,7 @@ export function RichTextEditor({ initial, locale, onChange, invalid, describedBy
         lang: locale,
         role: "textbox",
         "aria-multiline": "true",
-        "aria-label": "Article text",
+        "aria-label": label,
         ...(invalid ? { "aria-invalid": "true" } : {}),
         ...(describedBy ? { "aria-describedby": describedBy } : {}),
       },
@@ -53,7 +64,7 @@ export function RichTextEditor({ initial, locale, onChange, invalid, describedBy
 
   return (
     <div className={"rounded border bg-white " + (invalid ? "border-brand-dark" : "border-muted")}>
-      {editor ? <Toolbar editor={editor} /> : <div className="h-11 border-b border-line" />}
+      {editor ? <Toolbar editor={editor} allowAlign={allowAlign} /> : <div className="h-11 border-b border-line" />}
       <div className={locale === "si" ? "font-sans" : ""}>
         <EditorContent editor={editor} />
       </div>
@@ -61,7 +72,7 @@ export function RichTextEditor({ initial, locale, onChange, invalid, describedBy
   );
 }
 
-function Toolbar({ editor }: { editor: Editor }) {
+function Toolbar({ editor, allowAlign }: { editor: Editor; allowAlign: boolean }) {
   const s = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
@@ -73,6 +84,7 @@ function Toolbar({ editor }: { editor: Editor }) {
       bullet: e.isActive("bulletList"),
       ordered: e.isActive("orderedList"),
       quote: e.isActive("blockquote"),
+      align: allowAlign ? ((["center", "right", "justify"] as const).find((a) => e.isActive({ textAlign: a })) ?? "left") : "left",
       canUndo: e.can().undo(),
       canRedo: e.can().redo(),
       href: (e.getAttributes("link").href as string | undefined) ?? "",
@@ -129,6 +141,23 @@ function Toolbar({ editor }: { editor: Editor }) {
         <button type="button" className={btn(s.bullet)} aria-pressed={s.bullet} onClick={() => editor.chain().focus().toggleBulletList().run()} title="Bulleted list">• List</button>
         <button type="button" className={btn(s.ordered)} aria-pressed={s.ordered} onClick={() => editor.chain().focus().toggleOrderedList().run()} title="Numbered list">1. List</button>
         <button type="button" className={btn(s.quote)} aria-pressed={s.quote} onClick={() => editor.chain().focus().toggleBlockquote().run()} title="Quote">Quote</button>
+        {allowAlign && (
+          <>
+            <span className="mx-1 w-px self-stretch bg-line" aria-hidden />
+            {(
+              [
+                ["left", "Align left", "⇤"],
+                ["center", "Centre", "↔"],
+                ["right", "Align right", "⇥"],
+                ["justify", "Justify", "☰"],
+              ] as const
+            ).map(([a, name, icon]) => (
+              <button key={a} type="button" className={btn(s.align === a)} aria-pressed={s.align === a} aria-label={name} title={name} onClick={() => editor.chain().focus().setTextAlign(a).run()}>
+                {icon}
+              </button>
+            ))}
+          </>
+        )}
         <span className="mx-1 w-px self-stretch bg-line" aria-hidden />
         <button type="button" className={btn(false)} disabled={!s.canUndo} onClick={() => editor.chain().focus().undo().run()} title="Undo (Ctrl+Z)">Undo</button>
         <button type="button" className={btn(false)} disabled={!s.canRedo} onClick={() => editor.chain().focus().redo().run()} title="Redo (Ctrl+Y)">Redo</button>

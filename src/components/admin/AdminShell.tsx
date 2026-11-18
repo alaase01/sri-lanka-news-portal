@@ -16,6 +16,7 @@ const NAV: { label: string; href?: string }[] = [
   { label: "Comments", href: "/admin/comments" },
   { label: "Homepage", href: "/admin/homepage" },
   { label: "Advertisements", href: "/admin/ads" },
+  { label: "Static pages", href: "/admin/pages" },
   { label: "Settings" },
 ];
 

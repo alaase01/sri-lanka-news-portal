@@ -192,15 +192,17 @@ export type SiteChrome = {
   notice: string | null;
   social: { name: string; url: string }[];
   nav: NavLink[];
+  /** Static pages published in this language, in footer order. */
+  pages: { key: string; href: string }[];
 };
 
 /** Header and footer data: navigation, tagline, demo notice and social links. */
 export async function getSiteChrome(locale: Locale): Promise<SiteChrome> {
   "use cache";
   cacheLife("hours");
-  cacheTag("categories", "navigation", "settings");
+  cacheTag("categories", "navigation", "settings", "pages");
 
-  const [categories, items, settings] = await Promise.all([
+  const [categories, items, settings, pages] = await Promise.all([
     getCategoryIndex(locale),
     db.navigationItem.findMany({
       where: { isVisible: true, translations: { some: { locale } } },
@@ -208,6 +210,11 @@ export async function getSiteChrome(locale: Locale): Promise<SiteChrome> {
       include: { translations: { where: { locale } } },
     }),
     db.siteSettings.findUnique({ where: { id: 1 } }),
+    db.staticPage.findMany({
+      where: { translations: { some: { locale, isPublished: true } } },
+      orderBy: { sortOrder: "asc" },
+      select: { key: true, slug: true },
+    }),
   ]);
   const byId = indexById(categories);
 
@@ -255,6 +262,7 @@ export async function getSiteChrome(locale: Locale): Promise<SiteChrome> {
       .filter(([, url]) => typeof url === "string" && /^https:\/\//.test(url))
       .map(([name, url]) => ({ name, url })),
     nav,
+    pages: pages.map((p) => ({ key: p.key, href: `/${locale}/${p.slug}` })),
   };
 }
 

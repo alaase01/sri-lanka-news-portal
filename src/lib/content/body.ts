@@ -12,7 +12,7 @@ export type BodyMark = { type: "bold" | "italic" } | { type: "link"; attrs: { hr
 export type BodyNode = {
   type: string;
   text?: string;
-  attrs?: { level?: 2 | 3; href?: string };
+  attrs?: { level?: 2 | 3; href?: string; textAlign?: "center" | "right" | "justify" };
   marks?: BodyMark[];
   content?: BodyNode[];
 };
@@ -51,9 +51,13 @@ function cleanMarks(marks: unknown): BodyMark[] | undefined {
   return out.length ? out : undefined;
 }
 
-function cleanNode(node: unknown, depth: number): BodyNode | null {
+/** Text alignment, allowed only where a caller opts in (static pages). Left is the default and is not stored. */
+export const ALIGNMENTS = ["center", "right", "justify"] as const;
+export type CleanOptions = { align?: boolean };
+
+function cleanNode(node: unknown, depth: number, opts: CleanOptions = {}): BodyNode | null {
   if (!node || typeof node !== "object" || depth > MAX_DEPTH) return null;
-  const n = node as { type?: unknown; text?: unknown; attrs?: { level?: unknown }; marks?: unknown; content?: unknown };
+  const n = node as { type?: unknown; text?: unknown; attrs?: { level?: unknown; textAlign?: unknown }; marks?: unknown; content?: unknown };
   if (n.type === "text") {
     if (typeof n.text !== "string" || n.text.length === 0) return null;
     const marks = cleanMarks(n.marks);
@@ -65,20 +69,24 @@ function cleanNode(node: unknown, depth: number): BodyNode | null {
     return null;
   }
   const content = Array.isArray(n.content)
-    ? n.content.map((c) => cleanNode(c, depth + 1)).filter((c): c is BodyNode => c !== null)
+    ? n.content.map((c) => cleanNode(c, depth + 1, opts)).filter((c): c is BodyNode => c !== null)
     : [];
   const out: BodyNode = { type: n.type };
   if (n.type === "heading") out.attrs = { level: n.attrs?.level === 3 ? 3 : 2 };
+  if (opts.align && (n.type === "heading" || n.type === "paragraph")) {
+    const align = n.attrs?.textAlign;
+    if (typeof align === "string" && (ALIGNMENTS as readonly string[]).includes(align)) out.attrs = { ...out.attrs, textAlign: align as (typeof ALIGNMENTS)[number] };
+  }
   if (content.length) out.content = content;
   return out;
 }
 
 /** Returns a clean body, or null when the input is not a ProseMirror document at all. */
-export function cleanBody(input: unknown): BodyDoc | null {
+export function cleanBody(input: unknown, opts: CleanOptions = {}): BodyDoc | null {
   if (!input || typeof input !== "object" || (input as { type?: unknown }).type !== "doc") return null;
   const raw = (input as { content?: unknown }).content;
   const content = Array.isArray(raw)
-    ? raw.map((c) => cleanNode(c, 1)).filter((c): c is BodyNode => c !== null && c.type !== "text" && c.type !== "hardBreak")
+    ? raw.map((c) => cleanNode(c, 1, opts)).filter((c): c is BodyNode => c !== null && c.type !== "text" && c.type !== "hardBreak")
     : [];
   return { type: "doc", content: content.length ? content : [{ type: "paragraph" }] };
 }

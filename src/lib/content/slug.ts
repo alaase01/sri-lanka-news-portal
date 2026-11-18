@@ -22,6 +22,12 @@ export const RESERVED_SLUGS = new Set([
   "admin",
   "api",
   "media",
+  // Static pages (Admin → Static Pages)
+  "about",
+  "contact",
+  "privacy-policy",
+  "terms-and-conditions",
+  "editorial-policy",
 ]);
 
 export function isValidSlug(value: string): boolean {

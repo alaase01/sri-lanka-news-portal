@@ -189,9 +189,10 @@ sri-lanka-news-portal/
 
 ## 4. Database schema and important relationships
 
-39 models in `prisma/schema.prisma`. Five migrations; the fifth
-(`20261117020000_ai_usage_cost`, additive: a nullable `estimatedCostUsd` column
-and an index on `AiUsageLog`) is applied by `deploy/update.sh` on the server.
+41 models in `prisma/schema.prisma`. Six migrations; the last two
+(`20261117020000_ai_usage_cost`: a nullable column and an index on `AiUsageLog`;
+`20261118010000_static_pages`: two new tables plus five draft pages) are additive and
+are applied by `deploy/update.sh` on the server.
 
 ### The multilingual pattern
 
@@ -440,8 +441,6 @@ None of the following exists in the code.
 - Poll results export (CSV); per-poll switches for code names and comments.
 - Article preview before publishing, autosave, images inside the article text,
   author management, permanent deletion from the bin.
-- Static pages: About, Contact, Privacy, Terms, Editorial Policy (currently
-  plain footer text).
 - Search: Sinhala normalisation, prefix and trigram matching, phonetic
   (Singlish) path, English path, filters, suggestions.
 - View counting via a small beacon.
@@ -622,11 +621,13 @@ English edition; old scaffold layout causing a hydration error.
 
 ## 13. Testing status and outstanding tests
 
-**Current: 204 tests, all passing** (`npm test`), plus `npm run lint` and
+**Current: 220 tests, all passing** (`npm test`), plus `npm run lint` and
 `npm run typecheck` clean.
 
 | File | Covers |
 | --- | --- |
+| `tests/unit/static-pages.test.ts` | Starter content (both languages, no invented contact details, legal-review placeholders, matches the migration), reserved slugs, alignment allow-list, placeholder detection |
+| `tests/integration/static-pages.test.ts` | Static pages: placeholders block publishing, draft vs published copy, footer links, language fallback, unpublish, stale-edit refusal, sanitising |
 | `tests/unit/ai.test.ts` | Markdown ⇄ article body conversion, link removal, prompt data sections, cost estimates, link validation, API key kept out of browser code |
 | `tests/integration/ai-assistant.test.ts` | AI assistant with a simulated Claude: generate, approve rules (draft update, published → suggestion, new translation, pasted → new draft), stale-edit refusal, API errors, timeouts, rate limits, bad replies, usage logging |
 | `tests/unit/polls.test.ts` | Poll phases, results visibility, percentages summing to 100, word counting (Sinhala and English), text cleaning, comment flagging, device cookie issue/verify/tamper, network hashing |

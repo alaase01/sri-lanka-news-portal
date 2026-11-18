@@ -39,6 +39,11 @@ function formatDay(time: number, locale: Locale): string {
   return locale === "si" ? `${p.year} ${month} ${p.day}` : `${p.day} ${month} ${p.year}`;
 }
 
+/** Date only in Sri Lanka time, e.g. "2026 නොවැම්බර් 15" / "15 November 2026". */
+export function formatDate(iso: string, locale: Locale): string {
+  return formatDay(new Date(iso).getTime(), locale);
+}
+
 /** Absolute date and time in Sri Lanka time, e.g. "2026 නොවැම්බර් 15, 21:18". */
 export function formatDateTime(iso: string, locale: Locale): string {
   const time = new Date(iso).getTime();

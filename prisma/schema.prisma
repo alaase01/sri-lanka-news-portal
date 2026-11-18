@@ -607,6 +607,49 @@ model PollEvent {
 
 // ───────────────────────── Site, admin, audit ─────────────────────────
 
+// ───────────────────────── Static pages ─────────────────────────
+
+/// About, Contact and policy pages. A fixed set created by migration; the key
+/// and the web address are fixed so links to them never break.
+model StaticPage {
+  id        String   @id @default(cuid())
+  /// about | contact | privacy | terms | editorial
+  key       String   @unique
+  /// First path segment, the same in both languages: /si/about, /en/about.
+  slug      String   @unique
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  translations StaticPageTranslation[]
+}
+
+/// One language version. Holds the working draft and, separately, the published
+/// copy, so saving a draft never changes what visitors see.
+model StaticPageTranslation {
+  id              String   @id @default(cuid())
+  pageId          String
+  locale          Locale
+  /// Working draft. Body is ProseMirror JSON, cleaned like article bodies.
+  title           String   @default("")
+  body            Json
+  seoTitle        String   @default("")
+  metaDescription String   @default("")
+  /// Published copy, shown to visitors while isPublished is true.
+  publishedTitle           String?
+  publishedBody            Json?
+  publishedSeoTitle        String?
+  publishedMetaDescription String?
+  isPublished     Boolean  @default(false)
+  publishedAt     DateTime?
+  updatedAt       DateTime @updatedAt
+  updatedById     String?
+
+  page      StaticPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  updatedBy Admin?     @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([pageId, locale])
+}
+
 /// Single row (id = 1).
 model SiteSettings {
   id                 Int      @id @default(1)
@@ -632,6 +675,7 @@ model Admin {
   sessions  AdminSession[]
   auditLogs AuditLog[]
   aiUsage   AiUsageLog[]
+  staticPageEdits StaticPageTranslation[]
 }
 
 model AdminSession {

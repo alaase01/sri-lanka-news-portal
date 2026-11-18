@@ -49,16 +49,27 @@ function renderChildren(node: Node, depth: number): ReactNode[] {
   return (node.content as Node[]).map((child, i) => renderNode(child, i, depth + 1));
 }
 
+/** Alignment classes; only these values are ever rendered. */
+const ALIGN_CLASS: Record<string, string> = { center: "text-center", right: "text-right", justify: "text-justify" };
+function alignClass(node: Node): string | undefined {
+  const a = node.attrs?.textAlign;
+  return typeof a === "string" ? ALIGN_CLASS[a] : undefined;
+}
+
 function renderNode(node: Node, key: number, depth: number): ReactNode {
   if (!node || typeof node !== "object") return null;
   switch (node.type) {
     case "text":
       return renderText(node, key);
     case "paragraph":
-      return <p key={key}>{renderChildren(node, depth)}</p>;
+      return <p key={key} className={alignClass(node)}>{renderChildren(node, depth)}</p>;
     case "heading": {
       const level = node.attrs?.level === 3 ? 3 : 2;
-      return level === 3 ? <h3 key={key}>{renderChildren(node, depth)}</h3> : <h2 key={key}>{renderChildren(node, depth)}</h2>;
+      return level === 3 ? (
+        <h3 key={key} className={alignClass(node)}>{renderChildren(node, depth)}</h3>
+      ) : (
+        <h2 key={key} className={alignClass(node)}>{renderChildren(node, depth)}</h2>
+      );
     }
     case "bulletList":
       return <ul key={key}>{renderChildren(node, depth)}</ul>;

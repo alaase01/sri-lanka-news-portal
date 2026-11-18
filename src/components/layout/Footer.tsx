@@ -6,17 +6,26 @@ import type { Dictionary } from "@/lib/i18n/dictionary";
 import type { SiteChrome } from "@/server/services/content";
 
 export function Footer({ locale, t, chrome }: { locale: Locale; t: Dictionary; chrome: SiteChrome }) {
-  // Static pages (About, Contact, policies) are added with the admin portal; shown as plain text until then.
-  const pages = [t.about, t.contact, t.privacy, t.terms, t.editorialPolicy];
+  // Static pages (Admin → Static Pages). Only pages published in this language are listed.
+  const label: Record<string, string> = { about: t.about, contact: t.contact, privacy: t.privacy, terms: t.terms, editorial: t.editorialPolicy };
+  const pages = chrome.pages.filter((p) => label[p.key]);
   return (
     <footer className="on-dark mt-10 bg-navy text-navy-soft">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-10 gap-y-4 px-4 py-7 text-sm lg:px-6">
         <Wordmark className="text-[22px]" />
-        <ul className="flex flex-wrap gap-x-6 gap-y-2 text-white">
-          {pages.map((p) => (
-            <li key={p}>{p}</li>
-          ))}
-        </ul>
+        {pages.length > 0 && (
+          <nav aria-label={t.footerPages}>
+            <ul className="flex flex-wrap gap-x-6 gap-y-2 text-white">
+              {pages.map((p) => (
+                <li key={p.key}>
+                  <Link href={p.href} className="underline-offset-2 hover:underline">
+                    {label[p.key]}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
         <p>
           © 2026 {chrome.siteName}. {t.rights}
         </p>
