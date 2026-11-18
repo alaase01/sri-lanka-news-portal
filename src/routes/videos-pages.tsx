@@ -4,8 +4,8 @@ import { notFound } from "next/navigation";
 import { otherLocale, type Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { absoluteUrl, alternates } from "@/lib/seo/metadata";
+import { ownShareImage, socialMetadata } from "@/lib/seo/site";
 import { formatDateTime } from "@/lib/utils/dates";
-import { mediaUrl } from "@/lib/content/media";
 import { getVideoList, getVideoPage, getVideoSlugs } from "@/server/services/content";
 import { AdSlot } from "@/components/ads/AdSlot";
 import { ShareBar } from "@/components/article/ShareBar";
@@ -71,13 +71,11 @@ export async function videoMetadata(locale: Locale, props: VideoProps): Promise<
   const v = await getVideoPage(locale, slug);
   if (!v) return {};
   const description = v.metaDescription ?? (v.description.slice(0, 200) || getDictionary(locale).videosIntro);
-  const image = v.image ? absoluteUrl(mediaUrl(v.image.storageKey, 1600)) : null;
   return {
     title: v.seoTitle ?? v.title,
     description,
     alternates: alternates(locale, v.href, v.alternate?.href ?? null),
-    openGraph: { type: "video.other", title: v.title, description, url: v.href, ...(image ? { images: [{ url: image, alt: v.image!.alt }] } : {}) },
-    twitter: image ? { card: "summary_large_image", title: v.title, description, images: [image] } : { card: "summary", title: v.title, description },
+    ...(await socialMetadata({ locale, type: "video.other", title: v.title, description, path: v.href, image: ownShareImage(v.image), hasAlternate: !!v.alternate })),
   };
 }
 

@@ -22,6 +22,8 @@ const schema = z.object({
   AI_TIMEOUT_SECONDS: optionalInt(10, 600),
   AI_HOURLY_LIMIT: optionalInt(1, 1000),
   AI_DAILY_LIMIT: optionalInt(1, 10000),
+  // Google Search Console "HTML tag" verification code (the content="…" value only). Optional.
+  GOOGLE_SITE_VERIFICATION: z.preprocess((v) => (v === "" ? undefined : v), z.string().regex(/^[A-Za-z0-9_-]{10,100}$/).optional()),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -41,6 +43,7 @@ export const env = {
   DATABASE_URL: parsed.data.DATABASE_URL,
   SITE_URL: parsed.data.SITE_URL.replace(/\/$/, ""),
   MEDIA_DIR: parsed.data.MEDIA_DIR,
+  GOOGLE_SITE_VERIFICATION: parsed.data.GOOGLE_SITE_VERIFICATION ?? null,
 };
 
 /** AI settings. Empty strings in .env count as "not set". */

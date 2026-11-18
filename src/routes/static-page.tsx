@@ -5,6 +5,7 @@ import { otherLocale, type Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { formatDate } from "@/lib/utils/dates";
 import { alternates } from "@/lib/seo/metadata";
+import { socialMetadata } from "@/lib/seo/site";
 import { getStaticPage, type StaticPageSlug } from "@/server/services/pages";
 import { Breadcrumbs } from "@/components/article/Breadcrumbs";
 import { StaticPageContent } from "@/components/pages/StaticPageContent";
@@ -29,7 +30,7 @@ export async function staticPageMetadata(locale: Locale, slug: StaticPageSlug): 
     title: page.seoTitle || page.title,
     description,
     alternates: alternates(locale, path(locale, slug), page.otherPublished ? path(otherLocale(locale), slug) : null),
-    openGraph: { title: page.seoTitle || page.title, description, type: "website" },
+    ...(await socialMetadata({ locale, title: page.seoTitle || page.title, description, path: path(locale, slug), hasAlternate: page.otherPublished })),
   };
 }
 

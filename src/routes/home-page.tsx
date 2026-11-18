@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import type { Locale } from "@/lib/i18n/config";
 import { otherLocale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionary";
-import { alternates } from "@/lib/seo/metadata";
+import { alternates, SITE_NAME } from "@/lib/seo/metadata";
+import { socialMetadata } from "@/lib/seo/site";
 import { getHomepage } from "@/server/services/content";
 import { AdSlot } from "@/components/ads/AdSlot";
 import { ArticleHeadline, ArticleRow, ArticleTile } from "@/components/news/ArticleCards";
@@ -13,8 +14,12 @@ import { SectionHeading } from "@/components/news/SectionHeading";
 import { Ticker } from "@/components/news/Ticker";
 import { VideoPanel } from "@/components/news/VideoPanel";
 
-export function homeMetadata(locale: Locale): Metadata {
-  return { alternates: alternates(locale, `/${locale}`, `/${otherLocale(locale)}`) };
+export async function homeMetadata(locale: Locale): Promise<Metadata> {
+  const description = locale === "si" ? "ශ්‍රී ලංකාවේ සහ ලෝකයේ නවතම පුවත් සිංහලෙන්." : "The latest news from Sri Lanka and the world.";
+  return {
+    alternates: alternates(locale, `/${locale}`, `/${otherLocale(locale)}`),
+    ...(await socialMetadata({ locale, title: SITE_NAME, description, path: `/${locale}`, hasAlternate: true })),
+  };
 }
 
 export async function HomePage({ locale }: { locale: Locale }) {

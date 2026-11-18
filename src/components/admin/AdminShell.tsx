@@ -17,7 +17,7 @@ const NAV: { label: string; href?: string }[] = [
   { label: "Homepage", href: "/admin/homepage" },
   { label: "Advertisements", href: "/admin/ads" },
   { label: "Static pages", href: "/admin/pages" },
-  { label: "Settings" },
+  { label: "Settings", href: "/admin/settings" },
 ];
 
 export function AdminShell({ email, children }: { email: string; children: ReactNode }) {

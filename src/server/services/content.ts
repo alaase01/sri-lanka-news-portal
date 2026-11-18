@@ -1,4 +1,5 @@
 import "server-only";
+import { socialProfiles } from "@/lib/seo/social";
 import { cacheLife, cacheTag } from "next/cache";
 import { db } from "@/server/db/client";
 import type { Locale } from "@/lib/i18n/config";
@@ -45,7 +46,7 @@ export type Crumb = { name: string; href: string };
 // ───────────────────────── helpers (not cached, pure) ─────────────────────────
 
 /** A translation is public when published, or scheduled with its time already passed. */
-function publishedWhere(locale: Locale, now: Date): Prisma.ArticleTranslationWhereInput {
+export function publishedWhere(locale: Locale, now: Date): Prisma.ArticleTranslationWhereInput {
   return {
     locale,
     article: { deletedAt: null },
@@ -88,7 +89,7 @@ function cardImage(media: MediaRow | null, locale: Locale): CardImage | null {
 
 type CardRow = Prisma.ArticleTranslationGetPayload<{ select: typeof cardSelect }>;
 
-function articleHref(locale: Locale, category: CategoryNode | undefined, slug: string): string {
+export function articleHref(locale: Locale, category: CategoryNode | undefined, slug: string): string {
   return `/${locale}/${[...(category?.path ?? []), slug].join("/")}`;
 }
 
@@ -252,15 +253,12 @@ export async function getSiteChrome(locale: Locale): Promise<SiteChrome> {
   }
 
   const localized = (settings?.localized ?? {}) as Record<string, { tagline?: string; notice?: string }>;
-  const social = (settings?.socialLinks ?? {}) as Record<string, string>;
 
   return {
     siteName: settings?.siteName ?? "RSnewslk.com",
     tagline: localized[locale]?.tagline ?? null,
     notice: localized[locale]?.notice ?? null,
-    social: Object.entries(social)
-      .filter(([, url]) => typeof url === "string" && /^https:\/\//.test(url))
-      .map(([name, url]) => ({ name, url })),
+    social: socialProfiles(settings?.socialLinks).map((p) => ({ name: p.label, url: p.url })),
     nav,
     pages: pages.map((p) => ({ key: p.key, href: `/${locale}/${p.slug}` })),
   };
@@ -509,6 +507,7 @@ export type ArticlePageData = {
   seoTitle: string | null;
   metaDescription: string | null;
   publishedAt: string;
+  /** Last significant edit (see ArticleTranslation.modifiedAt); equals publishedAt when never edited. */
   updatedAt: string;
   authorName: string | null;
   crumbs: Crumb[];
@@ -589,7 +588,8 @@ export async function getArticlePage(locale: Locale, slug: string): Promise<Arti
     seoTitle: row.seoTitle,
     metaDescription: row.metaDescription,
     publishedAt: publishedAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
+    // Last significant edit of the public text, not the last save of any kind.
+    updatedAt: (row.modifiedAt ?? publishedAt).toISOString(),
     authorName: row.article.author?.translations[0]?.displayName ?? null,
     crumbs: category ? crumbsFor(category, byId) : [],
     tags: row.article.tags.flatMap((t) => {
@@ -632,7 +632,7 @@ export async function getTagSlugs(locale: Locale): Promise<string[]> {
 // ───────────────────────── videos ─────────────────────────
 
 /** A video is public in an edition when published (or its scheduled time has passed) and it has a page in that language. */
-function publicVideoWhere(locale: Locale, now: Date): Prisma.VideoWhereInput {
+export function publicVideoWhere(locale: Locale, now: Date): Prisma.VideoWhereInput {
   return {
     deletedAt: null,
     isVisible: true,
@@ -781,7 +781,7 @@ export type PollPageData = PollCard & {
   image: CardImage | null;
 };
 
-const publicPollWhere = { deletedAt: null, isHidden: false, status: { not: "DRAFT" } } satisfies Prisma.PollWhereInput;
+export const publicPollWhere = { deletedAt: null, isHidden: false, status: { not: "DRAFT" } } satisfies Prisma.PollWhereInput;
 
 function livePhase(poll: { status: "DRAFT" | "SCHEDULED" | "ACTIVE" | "CLOSED" | "ARCHIVED"; startsAt: Date; endsAt: Date }, now: Date) {
   if (poll.status === "ARCHIVED") return "archived" as const;

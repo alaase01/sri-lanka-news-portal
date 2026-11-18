@@ -3,7 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { otherLocale, type Locale } from "@/lib/i18n/config";
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionary";
-import { absoluteUrl, alternates } from "@/lib/seo/metadata";
+import { alternates } from "@/lib/seo/metadata";
+import { ownShareImage, socialMetadata } from "@/lib/seo/site";
 import { formatDateTime } from "@/lib/utils/dates";
 import { mediaSrcSet, mediaUrl } from "@/lib/content/media";
 import { getPollList, getPollPage, getPollSlugs, type PollCard } from "@/server/services/content";
@@ -137,16 +138,14 @@ export async function pollMetadata(locale: Locale, props: PollProps): Promise<Me
     description,
     // Both editions use the same slug, so the counterpart URL is known without a lookup.
     alternates: alternates(locale, poll.href, poll.hasOtherEdition ? `${base(otherLocale(locale))}/${poll.slug}` : null),
-    openGraph: {
-      type: "website",
+    ...(await socialMetadata({
+      locale,
       title: poll.question,
       description,
-      url: poll.href,
-      ...(poll.image ? { images: [{ url: absoluteUrl(mediaUrl(poll.image.storageKey, 1600)), alt: poll.image.alt }] } : {}),
-    },
-    twitter: poll.image
-      ? { card: "summary_large_image", title: poll.question, description, images: [absoluteUrl(mediaUrl(poll.image.storageKey, 1600))] }
-      : { card: "summary", title: poll.question, description },
+      path: poll.href,
+      image: ownShareImage(poll.image),
+      hasAlternate: poll.hasOtherEdition,
+    })),
   };
 }
 

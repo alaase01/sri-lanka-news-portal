@@ -373,6 +373,11 @@ export async function saveArticle(input: SaveInput, now: Date): Promise<SaveResu
   }
 
   const bodyJson = body as unknown as Prisma.InputJsonValue;
+  // A significant edit: the public text of a version that readers have already seen changed.
+  const stillPublic = status === "PUBLISHED" || status === "SCHEDULED";
+  const textChanged =
+    !!current && (current.headline !== headline || current.summary !== summary || JSON.stringify(cleanBody(current.body)) !== JSON.stringify(body));
+  const modifiedAt = current && stillPublic && wasPublic(current, now) && textChanged ? now : (current?.modifiedAt ?? null);
   const slugChanged = !!current && current.slug !== t.slug;
   const note =
     input.revisionNote ??
@@ -400,6 +405,7 @@ export async function saveArticle(input: SaveInput, now: Date): Promise<SaveResu
       status,
       publishedAt,
       scheduledAt,
+      modifiedAt: status === "DRAFT" ? null : modifiedAt,
     };
     const translation = current
       ? await tx.articleTranslation.update({ where: { id: current.id }, data })

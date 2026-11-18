@@ -6,27 +6,30 @@ import { env } from "@/config/env";
 import { languageTag, type Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { SITE_NAME } from "@/lib/seo/metadata";
+import { getSeoSettings, organizationJsonLd, socialMetadata } from "@/lib/seo/site";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { getSiteChrome } from "@/server/services/content";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
 
 export const viewport: Viewport = { themeColor: "#0b1f3a", width: "device-width", initialScale: 1 };
 
-export function layoutMetadata(locale: Locale): Metadata {
+export async function layoutMetadata(locale: Locale): Promise<Metadata> {
+  const description =
+    locale === "si" ? "ශ්‍රී ලංකාවේ සහ ලෝකයේ නවතම පුවත් සිංහලෙන්." : "The latest news from Sri Lanka and the world.";
   return {
     metadataBase: new URL(env.SITE_URL),
     title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
-    description:
-      locale === "si"
-        ? "ශ්‍රී ලංකාවේ සහ ලෝකයේ නවතම පුවත් සිංහලෙන්."
-        : "The latest news from Sri Lanka and the world.",
-    openGraph: { siteName: SITE_NAME, locale: locale === "si" ? "si_LK" : "en_LK", type: "website" },
+    description,
+    // Pages that set no social tags of their own still get complete ones.
+    ...(await socialMetadata({ locale, title: SITE_NAME, description })),
+    ...(env.GOOGLE_SITE_VERIFICATION ? { verification: { google: env.GOOGLE_SITE_VERIFICATION } } : {}),
   };
 }
 
 export async function LocaleLayout({ locale, children }: { locale: Locale; children: ReactNode }) {
   const t = getDictionary(locale);
-  const stored = await getSiteChrome(locale);
+  const [stored, seo] = await Promise.all([getSiteChrome(locale), getSeoSettings()]);
   // Public Opinions is a fixed part of the site, not a category, so it is added
   // here rather than stored as a navigation row.
   const chrome = {
@@ -50,6 +53,8 @@ export async function LocaleLayout({ locale, children }: { locale: Locale; child
           {children}
         </main>
         <Footer locale={locale} t={t} chrome={chrome} />
+        {/* The publication's identity, once per page; articles refer to it by @id. */}
+        <JsonLd data={organizationJsonLd(seo.sameAs)} />
       </body>
     </html>
   );

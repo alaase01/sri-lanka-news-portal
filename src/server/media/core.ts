@@ -175,7 +175,12 @@ export async function deleteMedia(id: string): Promise<{ ok: true } | { ok: fals
   if (!m) return { ok: false, error: "This image no longer exists." };
   const uses = m._count.articles + m._count.authors + m._count.videos + m._count.polls + m._count.adsDesktop + m._count.adsMobile;
   if (uses > 0) return { ok: false, error: `This image is used in ${uses} place(s). Replace it there first.` };
+  if ((await db.siteSettings.count({ where: { defaultShareMediaId: id } })) > 0) {
+    return { ok: false, error: "This image is the default share image (Settings). Choose another one there first." };
+  }
   await db.media.delete({ where: { id } });
-  await Promise.all(MEDIA_WIDTHS.map((w) => deleteMediaFile(`${m.storageKey}-${w}.webp`).catch(() => undefined)));
+  await Promise.all(
+    [...MEDIA_WIDTHS.map((w) => `${m.storageKey}-${w}.webp`), `${m.storageKey}-og.jpg`].map((n) => deleteMediaFile(n).catch(() => undefined)),
+  );
   return { ok: true };
 }

@@ -2,11 +2,11 @@ import "server-only";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { env } from "@/config/env";
-import { MEDIA_FILE_PATTERN } from "@/lib/content/media";
+import { MEDIA_FILE_PATTERN, SHARE_FILE_PATTERN } from "@/lib/content/media";
 
 /**
  * Local-disk storage for processed images. File names are generated
- * (`<32 hex>-<width>.webp`) and checked against a strict pattern before any
+ * (`<32 hex>-<width>.webp`, and `<32 hex>-og.jpg` for share images) and checked against a strict pattern before any
  * file-system call, so a request can never reach another path.
  *
  * Moving to object storage later means replacing these three functions.
@@ -15,8 +15,10 @@ import { MEDIA_FILE_PATTERN } from "@/lib/content/media";
 // Runtime data, not source code: excluded from build-time file tracing.
 const root = () => resolve(/*turbopackIgnore: true*/ process.cwd(), env.MEDIA_DIR);
 
+const validName = (name: string) => MEDIA_FILE_PATTERN.test(name) || SHARE_FILE_PATTERN.test(name);
+
 function pathFor(name: string): string {
-  if (!MEDIA_FILE_PATTERN.test(name)) throw new Error("invalid media file name");
+  if (!validName(name)) throw new Error("invalid media file name");
   return join(/*turbopackIgnore: true*/ root(), name.slice(0, 2), name);
 }
 
@@ -28,7 +30,7 @@ export async function writeMediaFile(name: string, data: Buffer): Promise<void> 
 }
 
 export async function readMediaFile(name: string): Promise<Buffer | null> {
-  if (!MEDIA_FILE_PATTERN.test(name)) return null;
+  if (!validName(name)) return null;
   try {
     return await readFile(pathFor(name));
   } catch {

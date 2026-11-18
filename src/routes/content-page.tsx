@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import type { Locale } from "@/lib/i18n/config";
+import { otherLocale, type Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionary";
 import { formatDateTime } from "@/lib/utils/dates";
-import { absoluteUrl, alternates } from "@/lib/seo/metadata";
+import { absoluteUrl, alternates, SITE_NAME } from "@/lib/seo/metadata";
+import { breadcrumbJsonLd, inLanguage, LOGO, ORGANIZATION_ID, ownShareImage, socialMetadata } from "@/lib/seo/site";
+import { JsonLd } from "@/components/seo/JsonLd";
 import {
   getArticlePage,
   getCategoryIndex,
@@ -79,12 +81,15 @@ export async function contentMetadata(locale: Locale, props: ContentProps): Prom
   if (split && (await isCategoryPath(locale, split.base))) {
     const data = await getCategoryPage(locale, split.base, split.page);
     if (!data) return {};
+    const pagePath = split.page > 1 ? `${data.category.href}/page/${split.page}` : data.category.href;
+    // hreflang only for the first page: later pages of the two editions hold different articles.
+    const other = split.page === 1 ? (await getCategoryIndex(otherLocale(locale))).find((c) => c.id === data.category.id) : undefined;
+    const title = split.page > 1 ? `${data.category.name} (${split.page})` : data.category.name;
     return {
-      title: data.category.name,
+      title,
       description: data.category.description ?? undefined,
-      alternates: {
-        canonical: split.page > 1 ? `${data.category.href}/page/${split.page}` : data.category.href,
-      },
+      alternates: alternates(locale, pagePath, other?.href ?? null),
+      ...(await socialMetadata({ locale, title, description: data.category.description, path: pagePath, hasAlternate: !!other })),
     };
   }
 
@@ -95,18 +100,50 @@ export async function contentMetadata(locale: Locale, props: ContentProps): Prom
     title: article.seoTitle ?? article.headline,
     description,
     alternates: alternates(locale, article.href, article.alternate?.href ?? null),
-    openGraph: {
+    ...(await socialMetadata({
+      locale,
       type: "article",
       title: article.headline,
       description,
-      url: article.href,
+      path: article.href,
+      image: ownShareImage(article.image),
+      hasAlternate: !!article.alternate,
       publishedTime: article.publishedAt,
       modifiedTime: article.updatedAt,
-      ...(article.image ? { images: [{ url: absoluteUrl(mediaUrl(article.image.storageKey, 1600)), alt: article.image.alt }] } : {}),
-    },
-    twitter: article.image
-      ? { card: "summary_large_image", title: article.headline, description, images: [absoluteUrl(mediaUrl(article.image.storageKey, 1600))] }
-      : { card: "summary", title: article.headline, description },
+      section: article.crumbs.at(-1)?.name,
+      tags: article.tags.map((t) => t.name),
+    })),
+  };
+}
+
+/** NewsArticle structured data. Only published articles reach this page, so nothing here describes a draft. */
+function newsArticleJsonLd(locale: Locale, a: ArticlePageData) {
+  const share = ownShareImage(a.image);
+  const images = a.image
+    ? [...(share ? [share.url] : []), absoluteUrl(mediaUrl(a.image.storageKey, 1600))]
+    : undefined;
+  const publisher = {
+    "@type": "NewsMediaOrganization",
+    "@id": ORGANIZATION_ID,
+    name: SITE_NAME,
+    logo: { "@type": "ImageObject", url: absoluteUrl(LOGO.path), width: LOGO.width, height: LOGO.height },
+  };
+  return {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    mainEntityOfPage: { "@type": "WebPage", "@id": absoluteUrl(a.href) },
+    url: absoluteUrl(a.href),
+    headline: a.headline,
+    ...(a.metaDescription || a.summary ? { description: a.metaDescription || a.summary } : {}),
+    ...(images ? { image: images } : {}),
+    datePublished: a.publishedAt,
+    dateModified: a.updatedAt,
+    inLanguage: inLanguage(locale),
+    // The byline when there is one; otherwise the article is credited to the publication, as on the page.
+    author: a.authorName ? [{ "@type": "Person", name: a.authorName }] : [{ "@type": "NewsMediaOrganization", "@id": ORGANIZATION_ID, name: SITE_NAME, url: absoluteUrl("/") }],
+    publisher,
+    ...(a.crumbs.at(-1) ? { articleSection: a.crumbs.at(-1)!.name } : {}),
+    ...(a.tags.length ? { keywords: a.tags.map((t) => t.name).join(", ") } : {}),
   };
 }
 
@@ -138,6 +175,7 @@ function CategoryView({ locale, data }: { locale: Locale; data: CategoryPageData
   const t = getDictionary(locale);
   return (
     <div className="flex flex-col gap-5">
+      <JsonLd data={breadcrumbJsonLd([{ name: t.home, path: `/${locale}` }, ...data.crumbs.map((c) => ({ name: c.name, path: c.href }))])} />
       <AdSlot slot="top" label={t.advertisement} locale={locale} />
       <Breadcrumbs crumbs={data.crumbs.slice(0, -1)} homeHref={`/${locale}`} homeLabel={t.home} />
       <header className="border-l-[5px] border-brand pl-3">
@@ -186,6 +224,14 @@ function ArticleView({ locale, article }: { locale: Locale; article: ArticlePage
   const year = article.publishedAt.slice(0, 4);
   return (
     <div className="flex flex-col gap-8">
+      <JsonLd data={newsArticleJsonLd(locale, article)} />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: t.home, path: `/${locale}` },
+          ...article.crumbs.map((c) => ({ name: c.name, path: c.href })),
+          { name: article.headline, path: article.href },
+        ])}
+      />
       <AdSlot slot="top" label={t.advertisement} locale={locale} />
       <article className="mx-auto w-full max-w-3xl rounded-lg bg-white px-4 py-6 sm:px-8 sm:py-8">
         {/* Brand strip: sits directly above the headline so screenshots of it carry the brand. */}

@@ -131,6 +131,10 @@ model ArticleTranslation {
   /// When status is SCHEDULED, the article is treated as published once this time passes.
   scheduledAt     DateTime?
   publishedAt     DateTime?
+  /// Last significant change to the public text (headline, summary or body) after
+  /// first publication. Null when never changed since. Used for "Updated",
+  /// dateModified and sitemap lastmod; status-only saves do not change it.
+  modifiedAt      DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -657,6 +661,8 @@ model SiteSettings {
   mostReadWindowDays Int      @default(7)
   aiDailyTokenBudget Int      @default(200000)
   socialLinks        Json     @default("{}")
+  /// Image used when a page has no image of its own (Facebook, WhatsApp, X). Null: the built-in brand image.
+  defaultShareMediaId String?
   /// Per-language values such as tagline and footer text, keyed by locale.
   localized          Json     @default("{}")
   updatedAt          DateTime @updatedAt

@@ -189,7 +189,8 @@ sri-lanka-news-portal/
 
 ## 4. Database schema and important relationships
 
-41 models in `prisma/schema.prisma`. Six migrations; the last two
+41 models in `prisma/schema.prisma`. Seven migrations; `20261118020000_seo` adds
+`ArticleTranslation.modifiedAt` and `SiteSettings.defaultShareMediaId` (additive). Before that
 (`20261117020000_ai_usage_cost`: a nullable column and an index on `AiUsageLog`;
 `20261118010000_static_pages`: two new tables plus five draft pages) are additive and
 are applied by `deploy/update.sh` on the server.
@@ -446,8 +447,6 @@ None of the following exists in the code.
 - View counting via a small beacon.
 - AI-assisted rewriting (Anthropic API): nine operations, side-by-side review,
   fact-preservation check, daily budget, nothing saved without approval.
-- Technical SEO: sitemaps, robots.txt, NewsArticle / BreadcrumbList /
-  Organization structured data, share images.
 - Ad management (source still undecided: own banners, an ad network, or both).
 - Hosting, push alerts: deferred by the owner.
 
@@ -621,11 +620,13 @@ English edition; old scaffold layout causing a hydration error.
 
 ## 13. Testing status and outstanding tests
 
-**Current: 220 tests, all passing** (`npm test`), plus `npm run lint` and
+**Current: 235 tests, all passing** (`npm test`), plus `npm run lint` and
 `npm run typecheck` clean.
 
 | File | Covers |
 | --- | --- |
+| `tests/unit/seo.test.ts` | JSON-LD and XML escaping, social profile validation, Organization/Breadcrumb builders, share-image rules, robots.txt |
+| `tests/integration/seo.test.ts` | Article/pages/News sitemaps (drafts, scheduled, binned, unpublished excluded; 48-hour window; original publication time), significant-edit date, settings |
 | `tests/unit/static-pages.test.ts` | Starter content (both languages, no invented contact details, legal-review placeholders, matches the migration), reserved slugs, alignment allow-list, placeholder detection |
 | `tests/integration/static-pages.test.ts` | Static pages: placeholders block publishing, draft vs published copy, footer links, language fallback, unpublish, stale-edit refusal, sanitising |
 | `tests/unit/ai.test.ts` | Markdown ⇄ article body conversion, link removal, prompt data sections, cost estimates, link validation, API key kept out of browser code |

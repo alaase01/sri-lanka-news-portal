@@ -26,6 +26,17 @@ export function Footer({ locale, t, chrome }: { locale: Locale; t: Dictionary; c
             </ul>
           </nav>
         )}
+        {chrome.social.length > 0 && (
+          <ul aria-label={t.followUs} className="flex flex-wrap gap-x-5 gap-y-2 font-latin text-sm">
+            {chrome.social.map((s) => (
+              <li key={s.url}>
+                <a href={s.url} rel="me noopener" target="_blank" className="underline-offset-2 hover:underline">
+                  {s.name}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
         <p>
           © 2026 {chrome.siteName}. {t.rights}
         </p>
