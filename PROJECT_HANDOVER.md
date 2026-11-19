@@ -189,7 +189,7 @@ sri-lanka-news-portal/
 
 ## 4. Database schema and important relationships
 
-41 models in `prisma/schema.prisma`. Seven migrations; `20261118020000_seo` adds
+45 models in `prisma/schema.prisma`. Eight migrations; `20261119010000_newsroom` adds the newsroom tables, `AiUsageLog` search counts and run link, and `SiteSettings.aiMonthlyBudgetUsd` (additive). `20261118020000_seo` adds
 `ArticleTranslation.modifiedAt` and `SiteSettings.defaultShareMediaId` (additive). Before that
 (`20261117020000_ai_usage_cost`: a nullable column and an index on `AiUsageLog`;
 `20261118010000_static_pages`: two new tables plus five draft pages) are additive and
@@ -620,11 +620,13 @@ English edition; old scaffold layout causing a hydration error.
 
 ## 13. Testing status and outstanding tests
 
-**Current: 235 tests, all passing** (`npm test`), plus `npm run lint` and
+**Current: 255 tests, all passing** (`npm test`), plus `npm run lint` and
 `npm run typecheck` clean.
 
 | File | Covers |
 | --- | --- |
+| `tests/unit/newsroom.test.ts` | Newsroom schedule slots (Asia/Colombo), budget month, similarity and quotation checks, source and duplicate rules |
+| `tests/integration/newsroom.test.ts` | Newsroom pipeline with a simulated Claude: linked World drafts only, invented sources and quotes dropped, duplicates, insufficient evidence, HIGH rejected, MEDIUM held then approved, number mismatch, length retry, API retry, budget stop, slot-once scheduling, lock, timer endpoint |
 | `tests/unit/seo.test.ts` | JSON-LD and XML escaping, social profile validation, Organization/Breadcrumb builders, share-image rules, robots.txt |
 | `tests/integration/seo.test.ts` | Article/pages/News sitemaps (drafts, scheduled, binned, unpublished excluded; 48-hour window; original publication time), significant-edit date, settings |
 | `tests/unit/static-pages.test.ts` | Starter content (both languages, no invented contact details, legal-review placeholders, matches the migration), reserved slugs, alignment allow-list, placeholder detection |

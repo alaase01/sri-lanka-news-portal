@@ -1,0 +1,14 @@
+# Starts the automated newsroom's schedule check (see deploy/README.md).
+# The site decides whether a run is due; while automation is switched off in the
+# admin panel this does nothing. It cannot publish anything.
+[Unit]
+Description=RSnewslk.com newsroom schedule check
+After=rsnewslk.service
+Requires=rsnewslk.service
+
+[Service]
+Type=oneshot
+User=rsnews
+# Reads NEWSROOM_CRON_SECRET from the site's settings file.
+EnvironmentFile=/srv/rsnewslk/app/.env
+ExecStart=/usr/bin/curl -fsS --max-time 60 -X POST -H "Authorization: Bearer ${NEWSROOM_CRON_SECRET}" http://127.0.0.1:3000/api/internal/newsroom/tick

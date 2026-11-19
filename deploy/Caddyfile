@@ -10,6 +10,9 @@ rsnewslk.com {
 		max_size 10MB
 	}
 
+	# Server-only endpoints (the newsroom timer calls them on 127.0.0.1:3000 directly).
+	respond /api/internal/* 404
+
 	# Caddy replaces any X-Forwarded-For sent by a visitor with their real
 	# address, which the voting and sign-in limits rely on.
 	reverse_proxy 127.0.0.1:3000

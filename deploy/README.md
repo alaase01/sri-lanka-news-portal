@@ -11,6 +11,7 @@ server keeps them in `/srv/rsnewslk/db.env` and `/srv/rsnewslk/app/.env`.
 | `Caddyfile` | `/etc/caddy/Caddyfile` | HTTPS for rsnewslk.com, www redirect, forwards to port 3000 |
 | `backup.sh` | run nightly by cron (root) | Database dump and image archive, 14 days kept |
 | `update.sh` | run by the `rsnews` user | Pull, install, migrate, rebuild, restart |
+| `rsnewslk-newsroom.service`, `rsnewslk-newsroom.timer` | `/etc/systemd/system/` | Every 10 minutes asks the site whether a newsroom run is due (see docs/newsroom.md) |
 
 Server folders: `/srv/rsnewslk/app` (code), `/srv/rsnewslk/media` (uploaded
 images, `MEDIA_DIR`), `/srv/rsnewslk/postgres` (database files),

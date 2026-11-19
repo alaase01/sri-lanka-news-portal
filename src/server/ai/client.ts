@@ -8,13 +8,26 @@ import { aiEnv } from "@/config/env";
  * returned, logged or sent anywhere else.
  */
 
+/** Server-side research tools run by Anthropic (web search is billed per search; fetch only by tokens). */
+export type AiTools = {
+  search?: { maxUses: number; allowedDomains: string[] };
+  fetch?: { maxUses: number; allowedDomains: string[]; maxContentTokens: number };
+};
+
 export type AiRequest = {
   model: string;
   system: string;
   user: string;
   schema: Record<string, unknown>;
   maxTokens: number;
+  tools?: AiTools;
+  effort?: "low" | "medium" | "high";
 };
+
+/** A search result the model actually received (used to reject invented sources). */
+export type SearchHit = { url: string; title: string; pageAge: string | null };
+/** A page the model actually read. The text is used only in memory, for the similarity check; it is never stored. */
+export type FetchedPage = { url: string; title: string | null; text: string; retrievedAt: string | null };
 
 export type AiResponse = {
   /** The model's JSON reply as text. */
@@ -24,6 +37,10 @@ export type AiResponse = {
   outputTokens: number;
   /** "max_tokens" means the reply was cut off. */
   stopReason: string | null;
+  webSearchRequests?: number;
+  webFetchRequests?: number;
+  searchHits?: SearchHit[];
+  fetchedPages?: FetchedPage[];
 };
 
 /** Errors are reduced to a code; provider messages never reach the browser. */
@@ -42,6 +59,18 @@ export class AiError extends Error {
 
 export interface AiClient {
   complete(req: AiRequest): Promise<AiResponse>;
+}
+
+/**
+ * One line for the server log with the provider's error type and message, so failures can be
+ * diagnosed. Anthropic error messages describe the request, never the API key.
+ */
+export function describeError(e: unknown): string {
+  if (e instanceof Anthropic.APIError) {
+    const body = e.error as { error?: { type?: string; message?: string } } | undefined;
+    return `status ${e.status ?? "-"} ${body?.error?.type ?? ""}: ${(body?.error?.message ?? e.message).slice(0, 500)}`;
+  }
+  return e instanceof Error ? e.message.slice(0, 500) : String(e).slice(0, 200);
 }
 
 export function classifyError(e: unknown): AiErrorCode {
@@ -65,24 +94,70 @@ class AnthropicClient implements AiClient {
   }
 
   async complete(req: AiRequest): Promise<AiResponse> {
-    const res = await this.sdk.messages.create({
-      model: req.model,
-      max_tokens: req.maxTokens,
-      system: req.system,
-      messages: [{ role: "user", content: req.user }],
-      output_config: { effort: aiEnv.effort, format: { type: "json_schema", schema: req.schema } },
-    });
-    const text = res.content
-      .map((b) => (b.type === "text" ? b.text : ""))
-      .join("")
-      .trim();
-    return {
-      text,
-      model: res.model,
-      inputTokens: res.usage.input_tokens + (res.usage.cache_creation_input_tokens ?? 0) + (res.usage.cache_read_input_tokens ?? 0),
-      outputTokens: res.usage.output_tokens,
-      stopReason: res.stop_reason,
-    };
+    // Basic tool versions: results come back in full, so sources can be checked by code.
+    const tools: Anthropic.Messages.ToolUnion[] = [];
+    if (req.tools?.search) {
+      tools.push({
+        type: "web_search_20250305",
+        name: "web_search",
+        max_uses: req.tools.search.maxUses,
+        allowed_domains: req.tools.search.allowedDomains,
+        // Called directly, not from code execution (required for models without programmatic tool calling).
+        allowed_callers: ["direct"],
+      });
+    }
+    if (req.tools?.fetch) {
+      tools.push({
+        type: "web_fetch_20250910",
+        name: "web_fetch",
+        max_uses: req.tools.fetch.maxUses,
+        allowed_domains: req.tools.fetch.allowedDomains,
+        max_content_tokens: req.tools.fetch.maxContentTokens,
+        allowed_callers: ["direct"],
+      });
+    }
+
+    const user = tools.length
+      ? `${req.user}\n\nWhen you have finished searching and reading, reply with ONLY one JSON object (no other text, no code fences) that matches this JSON schema:\n${JSON.stringify(req.schema)}`
+      : req.user;
+    const messages: Anthropic.Messages.MessageParam[] = [{ role: "user", content: user }];
+    const out: AiResponse = { text: "", model: req.model, inputTokens: 0, outputTokens: 0, stopReason: null, webSearchRequests: 0, webFetchRequests: 0, searchHits: [], fetchedPages: [] };
+
+    // Long tool sessions can pause; continue a limited number of times.
+    for (let turn = 0; turn < 4; turn++) {
+      const res = await this.sdk.messages.create({
+        model: req.model,
+        max_tokens: req.maxTokens,
+        system: req.system,
+        messages,
+        ...(tools.length ? { tools } : {}),
+        // Structured outputs cannot be combined with the citations that web search adds, so with
+        // tools the JSON shape is requested in the prompt and checked by the caller instead.
+        output_config: tools.length ? { effort: req.effort ?? aiEnv.effort } : { effort: req.effort ?? aiEnv.effort, format: { type: "json_schema", schema: req.schema } },
+      });
+      out.model = res.model;
+      out.inputTokens += res.usage.input_tokens + (res.usage.cache_creation_input_tokens ?? 0) + (res.usage.cache_read_input_tokens ?? 0);
+      out.outputTokens += res.usage.output_tokens;
+      out.webSearchRequests! += res.usage.server_tool_use?.web_search_requests ?? 0;
+      out.webFetchRequests! += res.usage.server_tool_use?.web_fetch_requests ?? 0;
+      out.stopReason = res.stop_reason;
+      for (const b of res.content) {
+        if (b.type === "web_search_tool_result" && Array.isArray(b.content)) {
+          for (const r of b.content) out.searchHits!.push({ url: r.url, title: r.title, pageAge: r.page_age ?? null });
+        }
+        if (b.type === "web_fetch_tool_result" && b.content.type === "web_fetch_result") {
+          const src = b.content.content.source;
+          out.fetchedPages!.push({ url: b.content.url, title: b.content.content.title, text: src.type === "text" ? src.data : "", retrievedAt: b.content.retrieved_at });
+        }
+      }
+      const text = res.content.map((b) => (b.type === "text" ? b.text : "")).join("").trim();
+      if (res.stop_reason !== "pause_turn") {
+        out.text = text;
+        break;
+      }
+      messages.push({ role: "assistant", content: res.content as Anthropic.Messages.ContentBlockParam[] });
+    }
+    return out;
   }
 }
 

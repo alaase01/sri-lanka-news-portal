@@ -1,0 +1,12 @@
+# Every 10 minutes: lets scheduled newsroom runs start at 00:00, 06:00, 12:00
+# and 18:00 Sri Lanka time, and retries failed runs, without overlapping.
+[Unit]
+Description=RSnewslk.com newsroom schedule check every 10 minutes
+
+[Timer]
+OnCalendar=*:0/10
+RandomizedDelaySec=30
+Persistent=false
+
+[Install]
+WantedBy=timers.target

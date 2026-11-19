@@ -171,15 +171,15 @@ describe("pages sitemap", () => {
 
 describe("settings", () => {
   it("validates and stores official social profiles", async () => {
-    const bad = await saveSettings({ social: { facebook: "https://evil.example/x" }, defaultShareMediaId: "" });
+    const bad = await saveSettings({ social: { facebook: "https://evil.example/x" }, defaultShareMediaId: "", aiMonthlyBudgetUsd: "20" });
     expect(bad.ok).toBe(false);
     if (!bad.ok) expect(bad.errors.facebook).toBeTruthy();
 
-    expect((await saveSettings({ social: { facebook: "https://www.facebook.com/rsnewslk", x: "" }, defaultShareMediaId: "" })).ok).toBe(true);
+    expect((await saveSettings({ social: { facebook: "https://www.facebook.com/rsnewslk", x: "" }, defaultShareMediaId: "", aiMonthlyBudgetUsd: "20" })).ok).toBe(true);
     expect((await getSettings()).social).toEqual({ facebook: "https://www.facebook.com/rsnewslk" });
     expect((await getSeoSettings()).sameAs).toEqual(["https://www.facebook.com/rsnewslk"]);
     expect((await getSeoSettings()).defaultImage.url).toBe("http://localhost:3000/brand/og-default.jpg");
 
-    expect((await saveSettings({ social: {}, defaultShareMediaId: "missing" })).ok).toBe(false);
+    expect((await saveSettings({ social: {}, defaultShareMediaId: "missing", aiMonthlyBudgetUsd: "20" })).ok).toBe(false);
   });
 });

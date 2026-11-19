@@ -8,6 +8,7 @@ const NAV: { label: string; href?: string }[] = [
   { label: "Dashboard", href: "/admin" },
   { label: "Articles", href: "/admin/articles" },
   { label: "AI Editorial Assistant", href: "/admin/ai" },
+  { label: "Automated Global Newsroom", href: "/admin/newsroom" },
   { label: "Categories", href: "/admin/categories" },
   { label: "Tags", href: "/admin/tags" },
   { label: "Media", href: "/admin/media" },

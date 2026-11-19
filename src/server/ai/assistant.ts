@@ -7,8 +7,9 @@ import type { Locale } from "@/lib/i18n/config";
 import { cleanBody, emptyBody, MAX_BODY_CHARS, wordCount, type BodyDoc } from "@/lib/content/body";
 import { bodyLinks, bodyToMarkdown, keepOnlyLinks, markdownToBody, plainTextToBody } from "@/lib/content/markdown";
 import { createArticle, getArticleForEdit, LIMITS, saveArticle, type FieldErrors } from "@/server/admin/articles";
-import { AiError, classifyError, defaultClient, type AiClient, type AiErrorCode, type AiResponse } from "./client";
+import { AiError, classifyError, defaultClient, describeError, type AiClient, type AiErrorCode, type AiResponse } from "./client";
 import { estimateCostUsd } from "./pricing";
+import { reserve, worstCaseCost } from "./budget";
 import { buildUserMessage, operationInfo, OPERATION_LABEL, outputSchema, requiredSourceLocale, SYSTEM_PROMPT, type Operation, type Style } from "./prompts";
 
 /**
@@ -146,7 +147,14 @@ async function logUsage(entry: { adminId: string; operation: Operation; model: s
 
 // ───────────────────────── generate ─────────────────────────
 
-export type GenerateDeps = { client?: AiClient | null; now?: Date; limits?: { hourly: number; daily: number }; models?: { main: string; light: string } };
+export type GenerateDeps = {
+  client?: AiClient | null;
+  now?: Date;
+  limits?: { hourly: number; daily: number };
+  models?: { main: string; light: string };
+  /** Tests only: skip the monthly budget check. */
+  skipBudget?: boolean;
+};
 
 const fullReply = z.object({ headline: z.string(), body: z.string() });
 const headlineReply = z.object({ headline: z.string() });
@@ -217,6 +225,7 @@ export async function generate(adminId: string, input: GenerateInput, deps: Gene
   // Limits: one request at a time per admin, and a cap per hour and per day.
   if (inFlight.has(adminId)) return { ok: false, code: "busy", message: "A request is already running. Wait for it to finish." };
   inFlight.add(adminId);
+  let releaseBudget: () => void = () => undefined;
   try {
     const used = await usageWindow(adminId, now);
     if (used.lastHour >= limits.hourly || used.lastDay >= limits.daily) {
@@ -229,18 +238,24 @@ export async function generate(adminId: string, input: GenerateInput, deps: Gene
 
     const models = deps.models ?? { main: aiEnv.model, light: aiEnv.modelLight };
     const model = info.light ? models.light : models.main;
+    const user = buildUserMessage({ operation: input.operation, style: input.style, instructions: input.instructions, sourceLinks: links.links, sourceLocale, headline, bodyMarkdown: markdown });
+    // Includes the model's reasoning. Stays under the SDK's limit for non-streamed requests.
+    const maxTokens = info.headlinesOnly ? 4_000 : 20_000;
+
+    // Monthly budget: reserve the worst case before calling (about 1 token per 2 characters of prompt, generously).
+    const worst = worstCaseCost(model, Math.ceil((SYSTEM_PROMPT.length + user.length) / 2), maxTokens);
+    if (worst === null) return { ok: false, code: "bad_request", message: `The cost of the AI model "${model}" is unknown, so the budget cannot be checked. Add its price to src/server/ai/pricing.ts or choose a listed model.` };
+    const release = deps.skipBudget ? () => undefined : await reserve(worst, now);
+    if (!release) return { ok: false, code: "limit", message: "The monthly AI budget is used up, or this request could exceed what is left. An admin can raise the limit in Settings." };
+    // Released once the real cost is logged (in finally below).
+    releaseBudget = release;
+
     let raw: AiResponse;
     try {
-      raw = await client.complete({
-        model,
-        system: SYSTEM_PROMPT,
-        user: buildUserMessage({ operation: input.operation, style: input.style, instructions: input.instructions, sourceLinks: links.links, sourceLocale, headline, bodyMarkdown: markdown }),
-        schema: outputSchema(input.operation),
-        // Includes the model's reasoning. Stays under the SDK's limit for non-streamed requests.
-        maxTokens: info.headlinesOnly ? 4_000 : 20_000,
-      });
+      raw = await client.complete({ model, system: SYSTEM_PROMPT, user, schema: outputSchema(input.operation), maxTokens });
     } catch (e) {
       const code = classifyError(e);
+      console.error(`[ai-assistant] ${input.operation} failed (${code}): ${describeError(e)}`);
       const usage = e instanceof AiError ? e.usage : null;
       await logUsage({ adminId, operation: input.operation, model: usage?.model ?? model, inputTokens: usage?.inputTokens ?? 0, outputTokens: usage?.outputTokens ?? 0, success: false, errorCode: code, now });
       return { ok: false, code, message: MESSAGES[code] };
@@ -304,6 +319,7 @@ export async function generate(adminId: string, input: GenerateInput, deps: Gene
       },
     };
   } finally {
+    releaseBudget();
     inFlight.delete(adminId);
   }
 }

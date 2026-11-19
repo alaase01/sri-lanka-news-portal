@@ -2,7 +2,8 @@
  * Estimated cost of one AI request, from the token counts the API reports.
  *
  * Standard Claude API list prices in US dollars per million tokens, checked on
- * 2026-11-17 against platform.claude.com/docs/models. Prices change: update this
+ * 2026-11-17 against platform.claude.com/docs/models; web search price checked
+ * 2026-11-19 against docs.claude.com/en/docs/about-claude/pricing. Prices change: update this
  * table when Anthropic changes them. A model that is not listed gets no estimate
  * (null) rather than a guessed one. The invoice from Anthropic is the real cost.
  */
@@ -22,10 +23,13 @@ function priceFor(model: string): Price | null {
   return key ? PRICES_PER_MTOK[key] : null;
 }
 
-export function estimateCostUsd(model: string, inputTokens: number, outputTokens: number): number | null {
+/** Web search: USD 10 per 1,000 searches. Web fetch has no charge beyond tokens. */
+export const WEB_SEARCH_USD = 0.01;
+
+export function estimateCostUsd(model: string, inputTokens: number, outputTokens: number, webSearches = 0): number | null {
   const p = priceFor(model);
   if (!p) return null;
   const rate = p.longPrompt && inputTokens > p.longPrompt.over ? p.longPrompt : p;
-  const cost = (inputTokens * rate.input + outputTokens * rate.output) / 1_000_000;
+  const cost = (inputTokens * rate.input + outputTokens * rate.output) / 1_000_000 + webSearches * WEB_SEARCH_USD;
   return Math.round(cost * 1_000_000) / 1_000_000;
 }

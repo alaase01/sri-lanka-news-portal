@@ -102,6 +102,8 @@ model Article {
   featuredMedia   Media?   @relation("ArticleFeaturedMedia", fields: [featuredMediaId], references: [id], onDelete: Restrict)
 
   translations ArticleTranslation[]
+  /// Set when the automated newsroom created this article as a draft.
+  newsroomStory NewsroomStory?
   categories   ArticleCategory[]
   tags         ArticleTag[]
   views        ArticleViewDaily[]
@@ -611,6 +613,113 @@ model PollEvent {
 
 // ───────────────────────── Site, admin, audit ─────────────────────────
 
+// ───────────────────────── Automated newsroom ─────────────────────────
+
+/// Single row (id = 1). Automation is off until an admin enables it after a successful manual run.
+model NewsroomSettings {
+  id                Int      @id @default(1)
+  enabled           Boolean  @default(false)
+  maxStoriesPerRun  Int      @default(2)
+  /// Lock against overlapping runs: the run holding it and when the lock lapses.
+  lockRunId         String?
+  lockedUntil       DateTime?
+  updatedAt         DateTime @updatedAt
+}
+
+enum NewsroomRunStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+  SKIPPED
+}
+
+/// One research run. slotKey makes each scheduled window run once ("2026-11-19T06:00+05:30"); manual runs use "manual-<id>".
+model NewsroomRun {
+  id            String            @id @default(cuid())
+  slotKey       String            @unique
+  trigger       String
+  status        NewsroomRunStatus @default(RUNNING)
+  attempt       Int               @default(1)
+  startedAt     DateTime          @default(now())
+  finishedAt    DateTime?
+  discovered    Int               @default(0)
+  selected      Int               @default(0)
+  duplicates    Int               @default(0)
+  insufficient  Int               @default(0)
+  copyright     Int               @default(0)
+  drafted       Int               @default(0)
+  held          Int               @default(0)
+  failed        Int               @default(0)
+  /// Plain-language reason for a failure or skip (never contains secrets).
+  message       String?
+  costUsd       Decimal           @default(0) @db.Decimal(12, 6)
+  triggeredById String?
+
+  stories NewsroomStory[]
+
+  @@index([startedAt(sort: Desc)])
+}
+
+enum NewsroomStoryStatus {
+  DRAFTED
+  HELD
+  REJECTED
+  FAILED
+  DISCARDED
+}
+
+enum CopyrightRisk {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+/// A story the research found, and what happened to it. Holds research notes and source
+/// references, never copies of source articles.
+model NewsroomStory {
+  id             String              @id @default(cuid())
+  runId          String
+  topic          String
+  status         NewsroomStoryStatus
+  /// Why it was rejected, held or failed.
+  reason         String?
+  /// Normalised words of the topic and entities, for duplicate checks.
+  fingerprint    String              @default("")
+  /// Facts, sources (url, publisher, author, published, accessed), conflicts, notes.
+  research       Json
+  verification   String              @default("")
+  copyrightRisk  CopyrightRisk?
+  copyrightNotes String?
+  /// Generated text for held stories, so an editor can review it before creating drafts.
+  heldContent    Json?
+  enHeadline     String?
+  siHeadline     String?
+  enWords        Int?
+  siWords        Int?
+  articleId      String?             @unique
+  model          String?
+  costUsd        Decimal             @default(0) @db.Decimal(12, 6)
+  createdAt      DateTime            @default(now())
+
+  run     NewsroomRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  article Article?    @relation(fields: [articleId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([status])
+}
+
+/// In-dashboard notifications. key makes one-off notices (budget warnings) appear once.
+model NewsroomNotice {
+  id        String    @id @default(cuid())
+  key       String?   @unique
+  level     String
+  message   String
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+
+  @@index([createdAt(sort: Desc)])
+}
+
 // ───────────────────────── Static pages ─────────────────────────
 
 /// About, Contact and policy pages. A fixed set created by migration; the key
@@ -663,6 +772,8 @@ model SiteSettings {
   socialLinks        Json     @default("{}")
   /// Image used when a page has no image of its own (Facebook, WhatsApp, X). Null: the built-in brand image.
   defaultShareMediaId String?
+  /// Hard monthly limit for all AI use on the site (Sri Lanka calendar month). Only admins can change it.
+  aiMonthlyBudgetUsd  Decimal  @default(20) @db.Decimal(10, 2)
   /// Per-language values such as tagline and footer text, keyed by locale.
   localized          Json     @default("{}")
   updatedAt          DateTime @updatedAt
@@ -741,6 +852,11 @@ model AiUsageLog {
   outputTokens Int      @default(0)
   success      Boolean
   errorCode    String?
+  /// Server-side tool calls billed with this request (web search is charged per search).
+  webSearchRequests Int @default(0)
+  webFetchRequests  Int @default(0)
+  /// Set for requests made by the automated newsroom.
+  newsroomRunId String?
   /// Estimated from the reported token counts and the list price; null when the model's price is unknown.
   estimatedCostUsd Decimal? @db.Decimal(12, 6)
   createdAt    DateTime @default(now())
@@ -749,6 +865,7 @@ model AiUsageLog {
 
   @@index([createdAt(sort: Desc)])
   @@index([adminId, createdAt])
+  @@index([newsroomRunId])
 }
 
 // ─────────────────────────── Advertising (own banners) ───────────────────────────

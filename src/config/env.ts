@@ -22,6 +22,10 @@ const schema = z.object({
   AI_TIMEOUT_SECONDS: optionalInt(10, 600),
   AI_HOURLY_LIMIT: optionalInt(1, 1000),
   AI_DAILY_LIMIT: optionalInt(1, 10000),
+  // Automated newsroom. The secret lets the server's timer start scheduled runs (at least 32 characters).
+  NEWSROOM_CRON_SECRET: z.preprocess((v) => (v === "" ? undefined : v), z.string().min(32).max(200).optional()),
+  NEWSROOM_RESEARCH_MODEL: z.string().max(100).optional(),
+  NEWSROOM_WRITING_MODEL: z.string().max(100).optional(),
   // Google Search Console "HTML tag" verification code (the content="…" value only). Optional.
   GOOGLE_SITE_VERIFICATION: z.preprocess((v) => (v === "" ? undefined : v), z.string().regex(/^[A-Za-z0-9_-]{10,100}$/).optional()),
 });
@@ -44,6 +48,13 @@ export const env = {
   SITE_URL: parsed.data.SITE_URL.replace(/\/$/, ""),
   MEDIA_DIR: parsed.data.MEDIA_DIR,
   GOOGLE_SITE_VERIFICATION: parsed.data.GOOGLE_SITE_VERIFICATION ?? null,
+};
+
+/** Automated newsroom settings. */
+export const newsroomEnv = {
+  cronSecret: parsed.data.NEWSROOM_CRON_SECRET ?? null,
+  researchModel: parsed.data.NEWSROOM_RESEARCH_MODEL?.trim() || "claude-haiku-5-5",
+  writingModel: parsed.data.NEWSROOM_WRITING_MODEL?.trim() || "claude-sonnet-5-5",
 };
 
 /** AI settings. Empty strings in .env count as "not set". */

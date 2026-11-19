@@ -138,6 +138,14 @@ passwords, tokens, article text or reader submissions in the log.
 - `AiUsageLog` stores operation, model, token counts reported by the API, success/error code, estimated cost and admin — never article text.
 - Nothing is saved without "Approve and save". Published and scheduled versions are never changed: the text is stored as an "AI suggestion" revision. A save is refused if the article changed after the suggestion was generated.
 
+## Automated newsroom
+
+- Runs entirely on the server; no browser session, admin password or browser automation. Drafts are created by an in-server function that only ever inserts new articles with status DRAFT in the World category (`createDraftPair`); there is no code path that publishes, schedules or edits existing articles, and no HTTP endpoint for it.
+- The timer endpoint `/api/internal/newsroom/tick` needs `NEWSROOM_CRON_SECRET` (compared in constant time), refuses requests forwarded by the public web server, is blocked by Caddy, and can only start the run that is due.
+- Admin controls (run, pause, settings, approve held, discard) are server actions behind `requireAdmin()` with audit logging.
+- Web pages and search results are treated as data; sources and quotations are checked by code against what was really retrieved. Source text is kept in memory only during a run.
+- The monthly AI budget is enforced before every AI call; only an admin can change it (Settings).
+
 ## Not yet done
 
 - Malware scanning of uploads (re-encoding already discards non-image content).

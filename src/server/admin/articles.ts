@@ -208,7 +208,7 @@ export async function getArticleForEdit(id: string): Promise<EditableArticle | n
 
 export type FieldErrors = Partial<Record<string, string>>;
 
-async function slugProblem(locale: Locale, slug: string, translationId: string | null): Promise<string | null> {
+export async function slugProblem(locale: Locale, slug: string, translationId: string | null): Promise<string | null> {
   if (!isValidSlug(slug)) return "Use lowercase English letters, numbers and single hyphens (for example: new-train-timetable).";
   if (RESERVED_SLUGS.has(slug)) return "This word is used by the site itself. Choose another slug.";
   const [taken, category] = await Promise.all([
