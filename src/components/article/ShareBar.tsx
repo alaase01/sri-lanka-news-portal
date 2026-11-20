@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore, type MouseEvent } from "react";
 import { buildShareLinks, type ShareTarget } from "@/lib/share";
 
 type Labels = { share: string; copyLink: string; linkCopied: string; copyFailed: string; shareMore: string; shareOn: string };
@@ -38,6 +38,25 @@ export function ShareBar({ url, title, summary, labels }: { url: string; title: 
     setTimeout(() => setCopyState("idle"), 3000);
   };
 
+  // On computers, open Facebook, X and Telegram in a small window (as their share dialogs expect).
+  // On phones, and if a popup blocker stops it, the link opens normally.
+  const openPopup = (e: MouseEvent<HTMLAnchorElement>, id: ShareTarget) => {
+    if (id === "whatsapp" || e.ctrlKey || e.metaKey || e.shiftKey || window.matchMedia("(max-width: 767px)").matches) return;
+    const w = 600;
+    const h = 560;
+    const left = Math.max(0, window.screenX + (window.outerWidth - w) / 2);
+    const top = Math.max(0, window.screenY + (window.outerHeight - h) / 2);
+    const win = window.open(links[id], `share-${id}`, `popup,width=${w},height=${h},left=${left},top=${top}`);
+    if (win) {
+      e.preventDefault();
+      try {
+        win.opener = null;
+      } catch {
+        // Already cut off from this page (Cross-Origin-Opener-Policy); nothing to do.
+      }
+    }
+  };
+
   const nativeShare = () => {
     // Rejection means the visitor closed the share sheet; nothing to report.
     navigator.share({ title, text: summary, url }).catch(() => undefined);
@@ -64,6 +83,7 @@ export function ShareBar({ url, title, summary, labels }: { url: string; title: 
               href={links[p.id]}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={(e) => openPopup(e, p.id)}
               aria-label={labels.shareOn.replace("{name}", p.name)}
               className={button}
             >

@@ -6,7 +6,7 @@
 export type AdSlotName = "top" | "home-mid" | "in-article" | "in-feed";
 export type AdPlacementKey = "TOP" | "HOME_MID" | "IN_ARTICLE" | "IN_FEED";
 
-export const AD_ROTATE_SECONDS = 10;
+export const AD_ROTATE_SECONDS = 5;
 
 export const AD_SLOTS: Record<
   AdSlotName,

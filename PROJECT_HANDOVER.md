@@ -388,7 +388,7 @@ checked by loading the pages. Content comes from the fictional seed data.
   link, advertiser, editions, start and end times, on/off and order; per-banner
   views and clicks (last 30 days and all time, click rate); warning when an
   image's shape does not fit the position.
-- Public: several running banners in a position take turns every 10 seconds
+- Public: several running banners in a position take turns every 5 seconds
   (random start, cross-fade, pause button, pauses off screen or in a background
   tab, no rotation with reduced motion); fair view counting (half visible for
   1 second, once per page); clicks counted through `/go/ad/{id}`.
