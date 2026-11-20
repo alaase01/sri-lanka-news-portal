@@ -67,7 +67,7 @@ Defined in `src/config/security-headers.ts`.
 | X-Content-Type-Options | nosniff | nosniff |
 | Referrer-Policy | strict-origin-when-cross-origin | same |
 | Permissions-Policy | camera, microphone, geolocation, payment, usb off | same |
-| Cross-Origin-Opener-Policy | same-origin | same |
+| Cross-Origin-Opener-Policy | same-origin-allow-popups (so the Facebook/X/Telegram share window can finish) | same-origin |
 | Strict-Transport-Security | 2 years, production only | same |
 | Cache-Control | page caching rules | `no-store` |
 

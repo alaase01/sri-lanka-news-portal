@@ -38,7 +38,7 @@ export function ShareBar({ url, title, summary, labels }: { url: string; title: 
     setTimeout(() => setCopyState("idle"), 3000);
   };
 
-  // On computers, open Facebook, X and Telegram in a small window (as their share dialogs expect).
+  // On computers, open Facebook, X and Telegram in a small popup window, as their share dialogs expect.
   // On phones, and if a popup blocker stops it, the link opens normally.
   const openPopup = (e: MouseEvent<HTMLAnchorElement>, id: ShareTarget) => {
     if (id === "whatsapp" || e.ctrlKey || e.metaKey || e.shiftKey || window.matchMedia("(max-width: 767px)").matches) return;
@@ -47,14 +47,9 @@ export function ShareBar({ url, title, summary, labels }: { url: string; title: 
     const left = Math.max(0, window.screenX + (window.outerWidth - w) / 2);
     const top = Math.max(0, window.screenY + (window.outerHeight - h) / 2);
     const win = window.open(links[id], `share-${id}`, `popup,width=${w},height=${h},left=${left},top=${top}`);
-    if (win) {
-      e.preventDefault();
-      try {
-        win.opener = null;
-      } catch {
-        // Already cut off from this page (Cross-Origin-Opener-Policy); nothing to do.
-      }
-    }
+    // The share window keeps its link to this page: Facebook's dialog uses it to finish
+    // and close after posting. These are fixed, trusted share addresses.
+    if (win) e.preventDefault();
   };
 
   const nativeShare = () => {

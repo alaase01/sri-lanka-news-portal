@@ -36,7 +36,10 @@ export function adminCsp(nonce: string): string {
   return policy(`'self' 'nonce-${nonce}' 'strict-dynamic'`);
 }
 
-/** Headers for every response. */
+/** Public pages open share windows (Facebook, X, Telegram) that need to talk back to the opener. */
+export const publicCoop = "same-origin-allow-popups";
+
+/** Headers for every response (public pages then override Cross-Origin-Opener-Policy with publicCoop). */
 export const baseSecurityHeaders: { key: string; value: string }[] = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
